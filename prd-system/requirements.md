@@ -120,3 +120,15 @@ These are requested Must requirements.
 An author label identifies a message; it does not verify a person's identity.
 A shared workspace means one running app with one PRD library.
 Open choice: how team members will access the shared app from other computers.
+
+## Private personal access in Codespaces
+
+These are requested Must requirements for personal course use.
+
+| ID | Requirement | Done when |
+| --- | --- | --- |
+| R-033 | Run Requiro in a private GitHub Codespace that only its owner can access after signing in to GitHub. | The app port is Private. The signed-in owner can use the app. A signed-out browser cannot read the app or its saved data. Local use still works, and requests from unrelated websites remain blocked. |
+| R-034 | Start the app when its Codespace starts and preserve saved PRDs, comments, reviews and proof when the same Codespace stops and restarts. | The app opens from a browser link. Saved records and an attached proof file remain available after a restart. Runtime data stays out of Git. The setup explains that deleting the Codespace removes data that has not been exported. |
+
+This setup is for the owner's private use. It does not provide access for other
+team members. Use only fictional or approved public nonconfidential course data.

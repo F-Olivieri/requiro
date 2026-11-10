@@ -3,7 +3,8 @@
 ## Open it
 
 Run `python3 server.py` from `02-prototype/app`, then open
-`http://127.0.0.1:8765`. Local use only; no hosted deployment.
+`http://127.0.0.1:8765`. The README also describes private personal access through
+GitHub Codespaces.
 
 ## What it demonstrates
 
@@ -16,10 +17,10 @@ context packet and accepts a structured reply; it has no model connection.
 
 ## Current limits
 
-This is a local application. Browser sessions using the same running app share
-requirement comments. Remote team access is not configured. Storage is on the
-local computer; exported current-document files do not include every historical
-revision.
+The app runs on your computer or in a private Codespace. Browser sessions using
+the same running app share requirement comments. Access for other team members
+is not configured. Saved data stays in that workspace; exported current-document
+files do not include every historical revision.
 Only synthetic or approved public nonconfidential course material is permitted.
 Confidentiality classification depends on the human; prompt rules do not prove
 that information is safe. Time saved, adoption and PRD quality remain unmeasured.

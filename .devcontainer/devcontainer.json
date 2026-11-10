@@ -1,0 +1,12 @@
+{
+  "name": "Requiro",
+  "forwardPorts": [8765],
+  "portsAttributes": {
+    "8765": {
+      "label": "Requiro",
+      "onAutoForward": "notify"
+    }
+  },
+  "postStartCommand": "nohup python3 02-prototype/app/server.py >/tmp/requiro-server.log 2>&1 </dev/null &",
+  "postAttachCommand": "gh codespace ports visibility 8765:private -c \"$CODESPACE_NAME\""
+}

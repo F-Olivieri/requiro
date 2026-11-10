@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import sqlite3
 
 from prd_store import InputError, MAX_BYTES, Store, markdown, text
@@ -49,13 +50,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def handle_request(self):
-        port = self.server.server_port
-        hosts = {f'127.0.0.1:{port}', f'localhost:{port}'}
         host = self.headers.get('Host')
-        if host not in hosts:
-            raise InputError('Use the local workspace address.', 403)
+        if host not in self.server.allowed_hosts:
+            raise InputError('Use the configured workspace address.', 403)
         origin = self.headers.get('Origin')
-        if origin is not None and origin not in {f'http://{h}' for h in hosts}:
+        if origin is not None and origin not in self.server.allowed_origins:
             raise InputError('Cross-origin requests are blocked.', 403)
         path = urlsplit(self.path).path
         parts = path.strip('/').split('/')
@@ -251,6 +250,20 @@ def make_server(directory=None, port=8765):
     # Bind first so a second launch cannot move an active default server's data.
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     try:
+        server.allowed_hosts = {f'127.0.0.1:{server.server_port}', f'localhost:{server.server_port}'}
+        server.allowed_origins = {f'http://{host}' for host in server.allowed_hosts}
+        if os.environ.get('CODESPACES') == 'true':
+            name = os.environ.get('CODESPACE_NAME', '')
+            domain = os.environ.get('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', '')
+            label = r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?'
+            forwarded_host = f'{name}-{server.server_port}.{domain}'
+            if (not re.fullmatch(label, name)
+                    or not re.fullmatch(label, f'{name}-{server.server_port}')
+                    or not re.fullmatch(rf'{label}(?:\.{label})+', domain)
+                    or len(forwarded_host) > 253):
+                raise RuntimeError('The Codespaces address is missing or invalid. Startup stopped.')
+            server.allowed_hosts.add(forwarded_host)
+            server.allowed_origins.add(f'https://{forwarded_host}')
         server.store = Store(directory if directory is not None else data_directory())
         server.verification = Verification(server.store)
         server.comments = Comments(server.store)

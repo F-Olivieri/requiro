@@ -3,7 +3,7 @@
 # Requiro PRD assistant
 
 Requiro helps a product manager create a PRD through a guided conversation, review
-requirements, and manage revisions in a local visual workspace.
+requirements, and manage revisions in a visual workspace.
 
 ## Start the workspace
 
@@ -20,6 +20,27 @@ fictional example. Confirm that all inputs are synthetic or approved public
 nonconfidential course material without real employer, customer, personal or
 account information. This confirmation is a user responsibility, not automatic
 confidentiality detection.
+
+## Use a private Codespace
+
+From the repository, choose **Code → Codespaces** and create a Codespace with
+**2 cores**. The app starts automatically. In the **Ports** panel, check that
+port **8765** says **Private**, then open its browser address. Sign in to the
+GitHub account that owns the Codespace. Keep the port Private; other people
+cannot use this personal workspace.
+
+Restart the same Codespace to return to saved work. Its PRDs, comments, reviews
+and proof files stay in `data/prds/`, separate from the code and excluded from
+Git. Existing data on another computer is not uploaded automatically.
+
+Stopping the Codespace preserves saved data. Deleting it removes that data.
+Inactive Codespaces may be deleted automatically. Before deleting one, stop the
+app and download the complete `data/prds/` directory for recovery. Individual
+PRD exports do not contain all comments, reviews or revision history.
+
+Codespaces has monthly compute and storage allowances. Stop the Codespace when
+finished; closing its browser tab does not stop it immediately. This setup does
+not change billing settings or provide an always-running service.
 
 ## Create and maintain a PRD
 
@@ -68,8 +89,9 @@ approval and delivery review; use normal editing to apply wording changes.
 
 Browser sessions connected to the same running app share discussions and receive
 new messages while comments are open. An author label is self-reported. The
-development server still accepts connections only from this computer; remote
-team access needs a separate hosting decision.
+app can run on your computer or in a private Codespace. The Codespace owner can
+access it from another computer after signing in to GitHub. Access for other
+team members needs a separate hosting decision.
 Comments stay in the app's shared data store. Standalone PRD JSON exports do not
 include discussion history.
 

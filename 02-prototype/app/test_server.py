@@ -3,9 +3,11 @@
 import copy
 import http.client
 import json
+from pathlib import Path
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
 import server
 import prd_store
@@ -206,6 +208,75 @@ class HttpTests(unittest.TestCase):
             return response.status, dict(response.getheaders()), response.read()
         finally:
             connection.close()
+
+    def restart_with_environment(self, environment):
+        self.stop_server()
+        with patch.dict(server.os.environ, environment):
+            self.http = server.make_server(self.directory.name, port=0)
+        self.thread = threading.Thread(target=self.http.serve_forever, daemon=True)
+        self.thread.start()
+
+    def test_codespaces_forwarded_requests_are_exact_and_https_only(self):
+        self.restart_with_environment({
+            'CODESPACES': 'true', 'CODESPACE_NAME': 'fictional-workspace',
+            'GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN': 'example.invalid',
+        })
+        host = f'fictional-workspace-{self.http.server_port}.example.invalid'
+        origin = f'https://{host}'
+        self.assertEqual(self.http.server_address[0], '127.0.0.1')
+        self.assertEqual(self.request(headers={'Host': host, 'Origin': origin})[0], 200)
+        self.assertEqual(self.request(headers={'Origin': origin})[0], 200)
+        self.assertEqual(self.request()[0], 200)
+        body = json.dumps({'title': 'Fictional forwarded list', 'privacyConfirmed': True})
+        self.assertEqual(self.request('POST', '/api/prds', body, {
+            'Host': host, 'Origin': origin, 'Content-Type': 'application/json',
+        })[0], 201)
+        before = self.http.store.summaries()
+        for bad_host in ('other.example.invalid', host + '.example.invalid', host + ':443'):
+            with self.subTest(host=bad_host):
+                self.assertEqual(self.request(headers={'Host': bad_host, 'Origin': origin})[0], 403)
+        for bad_origin in ('http://' + host, origin + '/', origin + '.example.invalid', 'null'):
+            with self.subTest(origin=bad_origin):
+                self.assertEqual(self.request(headers={'Host': host, 'Origin': bad_origin})[0], 403)
+                self.assertEqual(self.request('POST', '/api/prds', body, {
+                    'Host': host, 'Origin': bad_origin, 'Content-Type': 'application/json',
+                })[0], 403)
+        self.assertEqual(self.http.store.summaries(), before)
+
+    def test_codespaces_environment_does_not_enable_remote_access_locally(self):
+        self.restart_with_environment({
+            'CODESPACES': 'false', 'CODESPACE_NAME': 'fictional-workspace',
+            'GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN': 'example.invalid',
+        })
+        host = f'fictional-workspace-{self.http.server_port}.example.invalid'
+        self.assertEqual(self.request()[0], 200)
+        self.assertEqual(self.request(headers={'Host': host})[0], 403)
+        self.assertEqual(self.request(headers={'Origin': f'https://{host}'})[0], 403)
+
+    def test_invalid_codespaces_address_stops_before_opening_data(self):
+        environment = {
+            'CODESPACES': 'true', 'CODESPACE_NAME': 'fictional-workspace',
+            'GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN': 'example.invalid',
+        }
+        cases = (
+            ('CODESPACE_NAME', ''), ('CODESPACE_NAME', 'bad.name'),
+            ('CODESPACE_NAME', 'bad/name'), ('CODESPACE_NAME', '-bad'),
+            ('CODESPACE_NAME', 'bad-'), ('CODESPACE_NAME', 'a' * 63),
+            ('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', ''),
+            ('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', 'https://example.invalid'),
+            ('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', 'example.invalid/path'),
+            ('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', 'example.invalid:443'),
+            ('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', 'example.invalid@other.invalid'),
+            ('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', 'bad..invalid'),
+            ('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', 'bad_domain.invalid'),
+        )
+        data = Path(self.directory.name) / 'unopened-codespaces-data'
+        for key, value in cases:
+            with self.subTest(key=key, value=value), patch.dict(server.os.environ, {**environment, key: value}):
+                with self.assertRaisesRegex(RuntimeError, 'Codespaces address'):
+                    with server.make_server(data, port=0):
+                        pass
+                self.assertFalse(data.exists())
 
     def test_loopback_server_accepts_only_local_host_headers(self):
         self.assertEqual(self.http.server_address[0], '127.0.0.1')

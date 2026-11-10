@@ -53,5 +53,5 @@ Latency, cost and time-saving targets: Not documented. There is no model cost
 inside the app; any chosen assistant service has its own conditions. Evaluate
 useful suggestions, irrelevant flags, consequential misses, correction effort
 and total time alongside technical correctness. Browser sessions using the same
-running app share requirement comments. Remote hosting, automated external
-research and external system synchronization are not configured.
+running app share requirement comments. Hosting for other team members, automated
+external research and external system synchronization are not configured.
