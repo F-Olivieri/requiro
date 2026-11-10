@@ -1,0 +1,40 @@
+{
+  "title": "Fictional example · A shared reading list",
+  "privacy": "synthetic-or-approved-nonconfidential",
+  "stage": "Discover",
+  "sections": {
+    "problem": "In this fictional scenario, a small reading club shares book suggestions across separate messages. Members cannot tell which suggestions the group has already considered.",
+    "users": "Members of a fictional reading club who want one place to suggest and choose their next book.",
+    "outcomes": "Members can find current suggestions and see which book the group has chosen without searching old messages. This is a proposed outcome, not a measured result.",
+    "useCases": "UC-01: A member suggests a book.\nUC-02: Members browse the current list.\nUC-03: A member records the group’s choice.",
+    "scope": "A single shared list for one fictional club. Members can add a title, browse suggestions, and mark a book as chosen.",
+    "nonGoals": "Book purchasing, public profiles, recommendations, messaging, and multiple clubs are out of scope.",
+    "inputsOutputs": "Input: a book title and optional author. Output: a visible suggestion in the shared list. Empty titles show a clear validation message.",
+    "requirements": [
+      {
+        "id": "R-001",
+        "priority": "Must",
+        "proposed": true,
+        "appliesTo": "UC-01",
+        "outcome": "A suggestion is available to the whole club.",
+        "behavior": "A member can add a book title to the shared list.",
+        "acceptance": "Given a nonempty title, when the member submits it, the new suggestion appears once in the list. An empty title is rejected with a visible message."
+      },
+      {
+        "id": "R-002",
+        "priority": "Nice to have",
+        "proposed": true,
+        "appliesTo": "UC-02",
+        "outcome": "Members can find suggestions by title.",
+        "behavior": "A member can search the list by book title.",
+        "acceptance": "When a member enters a title fragment, only matching suggestions appear. An empty search shows the full list."
+      }
+    ],
+    "quality": "All core actions must work with a keyboard and have visible labels. Performance targets and persistence behavior are not yet decided.",
+    "metrics": "Proposed measure: whether members can find the chosen book without searching messages. Baseline, target, and test method are not documented.",
+    "risks": "The fictional club may not use the list consistently. The update workflow needs a usability check.",
+    "decisions": "Decide who may mark a book as chosen. Confirm the proposed priorities. Define how shared changes persist.",
+    "evidence": "This entire example is invented for demonstration. No interviews, usage measurements, real organizations, or personal information are included."
+  },
+  "chat": []
+}

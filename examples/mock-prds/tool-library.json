@@ -1,0 +1,76 @@
+{
+  "title": "Mock · Community tool library",
+  "privacy": "synthetic-or-approved-nonconfidential",
+  "stage": "Requirements",
+  "sections": {
+    "problem": "In this fictional scenario, neighbors share tools through a volunteer-run lending library. Requests arrive in separate messages, so volunteers cannot tell which tool is available or whether two bookings overlap.",
+    "users": "Members who borrow tools and volunteers who manage the lending desk.",
+    "outcomes": "Members can see tool availability and request a booking. Volunteers can identify conflicts before confirming a loan. These are intended outcomes, not measured results.",
+    "useCases": "UC-01: A member checks tool availability.\nUC-02: A member requests or cancels a booking.\nUC-03: A volunteer checks a tool back in.",
+    "scope": "One fictional lending location. Show tools, accept booking requests, prevent overlapping confirmed bookings, and record returns.",
+    "nonGoals": "Payments, delivery, identity checks, damage fees and connections to real inventory systems.",
+    "inputsOutputs": "Inputs: a selected tool, booking start and end, and the member action. Outputs: availability, a booking result, a clear error or a return status.",
+    "requirements": [
+      {
+        "id": "R-001",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-01",
+        "outcome": "Members can identify a tool they may borrow.",
+        "behavior": "Show each tool and whether it is available, booked or out of service.",
+        "acceptance": "Each listed tool shows its name and current availability. An empty catalog shows a clear message."
+      },
+      {
+        "id": "R-002",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-02",
+        "outcome": "Members can state when they need a tool.",
+        "behavior": "Let a member request a tool for a start and end time.",
+        "acceptance": "A request with an end time after its start can be submitted. An end time equal to or earlier than the start is rejected without creating a request."
+      },
+      {
+        "id": "R-003",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-02",
+        "outcome": "Two members are not promised the same tool at the same time.",
+        "behavior": "Prevent overlapping confirmed bookings for the same tool.",
+        "acceptance": "A volunteer cannot confirm a booking that overlaps an existing confirmed booking for that tool. A booking that starts when another ends is allowed."
+      },
+      {
+        "id": "R-004",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-03",
+        "outcome": "The next member sees the correct availability.",
+        "behavior": "Let a volunteer record that a tool was returned and whether it needs maintenance.",
+        "acceptance": "A returned tool becomes available when no booking or maintenance hold blocks it. A tool marked for maintenance remains unavailable."
+      },
+      {
+        "id": "R-005",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-02",
+        "outcome": "Members can withdraw requests they no longer need.",
+        "behavior": "Let a member cancel an unconfirmed booking request.",
+        "acceptance": "Canceling an unconfirmed request removes it from the pending list. It does not change another member’s request or a confirmed booking."
+      },
+      {
+        "id": "R-006",
+        "priority": "Nice to have",
+        "proposed": true,
+        "appliesTo": "UC-02",
+        "outcome": "Members can prepare to return a tool on time.",
+        "behavior": "Offer an optional reminder before a tool is due back.",
+        "acceptance": "Only members who opt in receive a reminder. Reminder timing and delivery method still need a decision before this requirement can be tested."
+      }
+    ],
+    "quality": "Booking and return actions must work with a keyboard and show clear validation errors. Display times in the lending location’s timezone. The timezone and performance targets are not documented.",
+    "metrics": "Proposed measures: conflicting confirmations and requests completed without volunteer help. Baselines, targets and measurement methods are not documented.",
+    "risks": "Pending requests may appear available while a volunteer is reviewing them. The team must agree whether a pending request holds a tool.",
+    "decisions": "Decide whether pending requests hold availability. Choose the lending timezone. Decide reminder timing and delivery method before including reminders in a release.",
+    "evidence": "This PRD is entirely fictional. Its review verdicts, proof and attachments are simulated examples. No real product, user research or test result is represented."
+  },
+  "chat": []
+}

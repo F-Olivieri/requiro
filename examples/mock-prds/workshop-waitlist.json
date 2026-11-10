@@ -1,0 +1,76 @@
+{
+  "title": "Mock · Workshop signup and waitlist",
+  "privacy": "synthetic-or-approved-nonconfidential",
+  "stage": "Requirements",
+  "sections": {
+    "problem": "In this fictional scenario, a community workshop has limited seats. Manual signup messages can produce duplicate bookings and leave canceled seats unused.",
+    "users": "Participants who sign up for a workshop and an organizer who manages its seat limit.",
+    "outcomes": "Participants can see seat availability, sign up once and join a waitlist when the workshop is full. Canceled seats can be offered fairly. These are intended outcomes, not measured results.",
+    "useCases": "UC-01: A participant checks availability and signs up.\nUC-02: A participant joins the waitlist.\nUC-03: A participant cancels and a waitlisted participant receives an offer.",
+    "scope": "One fictional workshop session with a fixed seat limit. Include signup, duplicate prevention, waitlist entry, cancellation and offers for released seats.",
+    "nonGoals": "Payments, recurring sessions, real notifications, attendee exports and integration with external event services.",
+    "inputsOutputs": "Inputs: the chosen session and a participant’s signup, waitlist or cancellation action. Outputs: a confirmed seat, waitlist position, cancellation result or seat offer.",
+    "requirements": [
+      {
+        "id": "R-001",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-01",
+        "outcome": "Participants know whether a seat is available.",
+        "behavior": "Show the number of seats still available.",
+        "acceptance": "The displayed count equals the seat limit minus confirmed signups. When no seats remain, the session is shown as full."
+      },
+      {
+        "id": "R-002",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-01",
+        "outcome": "The workshop stays within its seat limit.",
+        "behavior": "Confirm a participant’s signup only when a seat is available, and prevent duplicate signups.",
+        "acceptance": "The same participant receives at most one confirmed seat. Repeating a signup does not consume another seat. When two requests compete for the last seat, at most one is confirmed."
+      },
+      {
+        "id": "R-003",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-02",
+        "outcome": "Participants can wait for a released seat.",
+        "behavior": "Let a participant join the waitlist when the session is full.",
+        "acceptance": "A participant can join once and see their position. A repeated request does not create another waitlist entry."
+      },
+      {
+        "id": "R-004",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-03",
+        "outcome": "A canceled booking can be offered to someone else.",
+        "behavior": "Release a seat when its confirmed participant cancels.",
+        "acceptance": "Cancellation removes that participant’s confirmed signup and releases exactly one seat. Repeating the cancellation does not release another seat."
+      },
+      {
+        "id": "R-005",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-03",
+        "outcome": "Waitlisted participants receive a fair chance to join.",
+        "behavior": "Offer a released seat to the first participant on the waitlist.",
+        "acceptance": "Offers follow waitlist order and only one participant holds an active offer for a seat. The offer expiry and response method still need a decision before this requirement can be tested."
+      },
+      {
+        "id": "R-006",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-03",
+        "outcome": "Participants control their own booking.",
+        "behavior": "Allow participants to cancel only their own signup.",
+        "acceptance": "A participant can cancel their own signup. An attempt to cancel another participant’s signup is rejected without changing either record."
+      }
+    ],
+    "quality": "Seat counts and signup decisions must stay consistent when requests arrive together. Core actions must work with a keyboard. Error messages must preserve the participant’s current state.",
+    "metrics": "Proposed measures: duplicate confirmed signups, signups above the seat limit and released seats filled from the waitlist. Baselines and targets are not documented.",
+    "risks": "An offer with no agreed expiry could block a released seat indefinitely. Concurrent requests could overbook a session if the seat check and confirmation are separate.",
+    "decisions": "Decide the offer expiry and response method. Confirm how an organizer resolves a disputed waitlist position.",
+    "evidence": "This PRD is entirely fictional. Its review verdicts, proof and attachments are simulated examples. No real product, user research or test result is represented."
+  },
+  "chat": []
+}

@@ -1,0 +1,94 @@
+.prd-view {
+  min-width:0;
+  color:var(--ink);
+  font-size:13px;
+  line-height:1.65;
+  overflow-wrap:anywhere
+}
+.prd-view-document {
+  max-width:880px;
+  margin:0 auto;
+  padding:40px 44px;
+  border:1px solid var(--line);
+  background:white;
+  box-shadow:0 3px 16px #23213608
+}
+.prd-view-title { font-size:25px; line-height:1.3; margin:0 0 10px; letter-spacing:-.6px }
+.prd-view-identity { color:var(--muted); font-size:11px; margin:3px 0 }
+.prd-view-section { margin-top:28px }
+.prd-view-section > h3 { padding-bottom:7px; border-bottom:1px solid var(--line); margin-bottom:12px }
+.prd-view-text { white-space:pre-wrap; overflow-wrap:anywhere }
+.prd-view-requirement { margin:20px 0 28px; break-inside:avoid }
+.prd-view-requirement-heading { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:9px }
+.prd-view-requirement-heading h4 { margin:0; font-size:13px }
+.prd-view-behavior { margin:10px 0 15px; font-weight:550 }
+.prd-view-metadata { margin:0; display:grid; grid-template-columns:145px minmax(0,1fr); gap:9px 16px; font-size:12px }
+.prd-view-metadata dt { color:var(--muted); font-weight:500 }
+.prd-view-metadata dd { margin:0; min-width:0 }
+.prd-view-status { display:inline-block; padding:3px 7px; border:1px solid #ddd6e7; border-radius:5px; background:#f4f1f8; color:#645573; font-size:10px; line-height:1.5; font-weight:600 }
+.prd-view-status.complete { color:#315b45; background:#edf6ef; border-color:#c9e0ce }
+.prd-view-status.pending { color:#865d27; background:#fff7e9; border-color:#e8d6b6 }
+.prd-view-status[type=button]:hover { border-color:var(--accent); box-shadow:0 0 0 2px var(--lavender) }
+.prd-view-attachments { display:flex; flex-direction:column; gap:5px }
+.prd-view-review { padding:7px 9px; min-height:32px; font-size:11px; overflow-wrap:normal }
+.prd-comment-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px }
+.prd-comment-actions .text-button { font-size:11px }
+.prd-comment-selection { min-height:32px; padding:6px 9px; font-size:11px; text-align:left; white-space:normal }
+.prd-view-requirement > .prd-view-review { margin-top:15px }
+.prd-view-table-wrap { max-width:100%; margin-top:22px }
+.prd-view-table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:11px; line-height:1.55 }
+.prd-view-table caption { text-align:left; font-size:17px; font-weight:650; padding-bottom:10px }
+.prd-view-table th,.prd-view-table td { text-align:left; vertical-align:top; padding:12px 8px; border-bottom:1px solid var(--line); overflow-wrap:anywhere }
+.prd-view-table thead th { font-size:10px; color:var(--muted); font-weight:650; background:#f7f5fa }
+.prd-view-table th:first-child { width:10%; padding-left:10px }
+.prd-view-table th:nth-child(2) { width:33% }
+.prd-view-table th:nth-child(3) { width:12% }
+.prd-view-table th:nth-child(4) { width:16% }
+.prd-view-table th:nth-child(5) { width:15% }
+.prd-view-table th:nth-child(6) { width:14% }
+.prd-view-table-behavior { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden }
+.prd-view-row-details { margin-top:8px }
+.prd-view summary { cursor:pointer; color:var(--accent); font-size:11px; font-weight:550; line-height:1.6 }
+.prd-view-row-details[open] { padding-top:4px }
+.prd-view-row-details .prd-view-metadata { display:block; font-size:11px }
+.prd-view-row-details .prd-view-metadata dt { margin-top:10px }
+.prd-view-row-details .prd-view-metadata dd { margin-top:3px }
+.prd-view-context { border-top:1px solid var(--line); padding-top:18px; margin-top:24px }
+.comments-dialog { max-width:1000px; width:calc(100vw - 32px); max-height:94vh }
+.comments-dialog>label { margin-top:12px }
+.comments-dialog>#comments-author { max-width:360px }
+.comments-layout { display:grid; grid-template-columns:230px minmax(0,1fr); border:1px solid var(--line); border-radius:8px; margin-top:16px; min-height:300px; max-height:68vh; overflow:hidden }
+.comments-list { padding:10px; overflow:auto; border-right:1px solid var(--line); background:var(--paper) }
+.comments-item { display:block; width:100%; padding:10px; margin-bottom:8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); text-align:left; white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; line-height:1.5 }
+.comments-item.active { border-color:var(--accent) }
+.comments-main { min-width:0; display:flex; flex-direction:column; overflow:auto; background:var(--card) }
+.comments-thread { padding:18px; overflow:auto; min-height:120px; flex:1 }
+.comments-thread h3 { margin-bottom:12px }
+.comments-quote { margin:12px 0; padding:10px 12px; border-left:3px solid var(--accent); background:var(--paper); white-space:pre-wrap; overflow-wrap:anywhere }
+.comments-message { padding:14px 0; border-top:1px solid var(--line); overflow-wrap:anywhere }
+.comments-message-meta { color:var(--muted); font-size:11px; margin-bottom:8px }
+.comments-message-text { white-space:pre-wrap }
+.comments-message h4 { margin:12px 0 6px }
+.comments-suggested { min-height:70px; font-size:12px; margin-bottom:6px }
+.comments-compose { padding:12px 18px 18px; border-top:1px solid var(--line) }
+.comments-compose label { margin:8px 0 5px }
+.comments-compose textarea { min-height:54px; font-size:12px }
+.comments-compose .field-hint { margin:8px 0 }
+@media (max-width:700px) {
+  .comments-layout { grid-template-columns:1fr; max-height:none }
+  .comments-list { max-height:150px; border-right:0; border-bottom:1px solid var(--line) }
+  .comments-main { max-height:none }
+  .comments-thread { max-height:35vh }
+  .comments-compose,.comments-thread { padding:12px }
+  .prd-view-document { padding:25px 20px }
+  .prd-view-metadata { grid-template-columns:1fr; gap:3px }
+  .prd-view-metadata dt:not(:first-child) { margin-top:8px }
+  .prd-view-table th,.prd-view-table td { padding:10px 5px }
+  .prd-view-review { padding:6px; font-size:10px }
+}
+@media print {
+  .prd-comment-actions { display:none }
+  .prd-view-document { max-width:none; border:0; box-shadow:none; padding:0 }
+  .prd-view-review { display:none }
+  .prd-view-table-behavior { display:block; overflow:visible }
+}

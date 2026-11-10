@@ -1,0 +1,9 @@
+SIMULATED EXAMPLE ONLY. NO REAL TEST WAS RUN.
+
+R-001: valid title creates one open task; blank title is rejected; reopening preserves the saved task. Mock result: pass.
+R-002: one owner or Unassigned is shown; reassignment does not duplicate the task. Mock result: pass.
+R-003: an empty completion note keeps the task open and shows a validation message. A nonempty note allows completion and remains readable after saving. Mock result: pass.
+R-004: reopening retains the earlier completion note in history. Mock result: pass.
+R-005: My tasks shows only tasks assigned to the current volunteer. All tasks restores the full list. Neither filter changes a task or its owner. Mock result: pass.
+
+This checklist illustrates a completed review. It establishes no real delivery or test result.

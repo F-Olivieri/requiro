@@ -1,0 +1,6 @@
+SIMULATED EXAMPLE ONLY. NO REAL TEST WAS RUN.
+
+Requirement R-001: tool availability
+Mock result: named tools show available, booked and out-of-service states.
+Mock result: an empty catalog shows a clear message.
+This file illustrates a proof attachment; it is not evidence from a real product.

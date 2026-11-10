@@ -1,0 +1,67 @@
+{
+  "title": "Mock · Shared garden task board",
+  "privacy": "synthetic-or-approved-nonconfidential",
+  "stage": "Requirements",
+  "sections": {
+    "problem": "In this fictional scenario, volunteers maintain a shared garden. Tasks are scattered across messages, so volunteers repeat finished work or overlook work with no owner.",
+    "users": "Garden volunteers who create, claim and complete tasks on a shared board.",
+    "outcomes": "Volunteers can see open tasks, identify the owner and read what was done. These are intended outcomes, not measured results.",
+    "useCases": "UC-01: A volunteer creates and assigns a task.\nUC-02: A volunteer completes or reopens a task.\nUC-03: A volunteer filters tasks assigned to them.",
+    "scope": "One fictional garden board. Include task creation, one owner per task, completion notes, reopening and task filters.",
+    "nonGoals": "Recurring tasks, calendar sync, payments, real member profiles, public sharing and photo uploads.",
+    "inputsOutputs": "Inputs: task title, optional due date, selected owner and completion note. Outputs: an open or completed task, its history and a filtered task list.",
+    "requirements": [
+      {
+        "id": "R-001",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-01",
+        "outcome": "The group can record work that needs doing.",
+        "behavior": "Let a volunteer create a task with a title and optional due date.",
+        "acceptance": "A nonempty title creates one open task. A blank title is rejected with a visible message. Reopening the board shows the saved task."
+      },
+      {
+        "id": "R-002",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-01",
+        "outcome": "The group knows who is responsible.",
+        "behavior": "Let a volunteer assign or change a task’s owner.",
+        "acceptance": "A task shows one selected owner or Unassigned. Changing the owner replaces the assignment without creating a second task."
+      },
+      {
+        "id": "R-003",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-02",
+        "outcome": "Other volunteers can understand what was completed.",
+        "behavior": "Require a completion note when a volunteer marks a task done.",
+        "acceptance": "A task with a nonempty completion note can be marked done. Without a note, it remains open and shows a validation message. The saved note remains readable."
+      },
+      {
+        "id": "R-004",
+        "priority": "Must",
+        "proposed": false,
+        "appliesTo": "UC-02",
+        "outcome": "The group can resume work without losing the earlier record.",
+        "behavior": "Let a volunteer reopen a completed task while keeping its earlier completion note.",
+        "acceptance": "Reopening changes the task to open. The previous completion note remains available in its history."
+      },
+      {
+        "id": "R-005",
+        "priority": "Nice to have",
+        "proposed": false,
+        "appliesTo": "UC-03",
+        "outcome": "Volunteers can find their own work.",
+        "behavior": "Let a volunteer filter the board to tasks assigned to them.",
+        "acceptance": "The My tasks filter shows only tasks assigned to the current volunteer. The All tasks filter restores the full list. Neither filter changes a task or its owner."
+      }
+    ],
+    "quality": "Task changes and history must survive reopening the board. Labels and actions must be usable with a keyboard. A failed save must keep the draft available for another attempt.",
+    "metrics": "Proposed measures: tasks with an owner and completed tasks with a readable note. No adoption measurements or real outcomes exist for this mock example.",
+    "risks": "The demonstration covers the listed requirements only. It does not establish performance under load, real volunteer adoption or readiness for deployment.",
+    "decisions": "No open decision blocks these five mock requirements. Recurring tasks and photo uploads remain outside this scope.",
+    "evidence": "This PRD is entirely fictional. Its review verdicts, proof and attachments are simulated examples. No real product, user research or test result is represented."
+  },
+  "chat": []
+}

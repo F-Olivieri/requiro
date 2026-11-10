@@ -1,0 +1,157 @@
+@media screen {
+  :root[data-theme="light"] { color-scheme:light }
+  :root[data-theme="dark"] {
+    color-scheme:dark;
+    --ink:#edeef2;
+    --muted:#a7a9b4;
+    --paper:#090a0d;
+    --card:#14161b;
+    --line:#30333c;
+    --accent:#b49cff;
+    --accent-dark:#c6b4ff;
+    --lavender:#251e38;
+    --green:#8fd6aa;
+    --red:#ffaba5;
+    --shadow:0 12px 45px #0009;
+    background:var(--paper)
+  }
+
+  :root[data-theme="dark"] body,
+  :root[data-theme="dark"] .workspace { background:var(--paper) }
+  :root[data-theme="dark"] .library,
+  :root[data-theme="dark"] .assistant,
+  :root[data-theme="dark"] .assistant-compose { background:#101115 }
+
+  :root[data-theme="dark"] input,
+  :root[data-theme="dark"] select,
+  :root[data-theme="dark"] textarea,
+  :root[data-theme="dark"] .field-group textarea,
+  :root[data-theme="dark"] .assistant-compose textarea {
+    background:#191b22;
+    border-color:var(--line);
+    color:var(--ink)
+  }
+  :root[data-theme="dark"] input::placeholder,
+  :root[data-theme="dark"] textarea::placeholder { color:#9a9daa }
+  :root[data-theme="dark"] input:focus,
+  :root[data-theme="dark"] select:focus,
+  :root[data-theme="dark"] textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px #b49cff24 }
+  :root[data-theme="dark"] .field-group textarea:disabled { background:#111318; color:var(--muted) }
+  :root[data-theme="dark"] .document-title { background:transparent }
+  :root[data-theme="dark"] .document-title:focus { background:var(--card); box-shadow:0 2px 0 var(--accent) }
+  :root[data-theme="dark"] :focus-visible { outline-color:#c6b4ff }
+  :root[data-theme="dark"] ::selection { background:#624b9b; color:white }
+
+  :root[data-theme="dark"] .button { background:#1b1e25; border-color:#3c404b; color:var(--ink); box-shadow:none }
+  :root[data-theme="dark"] .button:hover { background:#292c36; border-color:#656171 }
+  :root[data-theme="dark"] .button.primary,
+  :root[data-theme="dark"] .stage-button.active .stage-number { background:#7352c3; border-color:#7352c3; color:white }
+  :root[data-theme="dark"] .button.primary:hover { background:#8060ce; border-color:#8060ce }
+  :root[data-theme="dark"] .button.quiet { background:transparent }
+  :root[data-theme="dark"] .button.quiet:hover,
+  :root[data-theme="dark"] .icon-button:hover { background:#292c36; color:var(--ink) }
+  :root[data-theme="dark"] .icon-button { color:var(--muted) }
+  :root[data-theme="dark"] .doc-item:hover { background:#202229 }
+  :root[data-theme="dark"] .doc-item.active { background:#201b2d; border-color:#504065; box-shadow:none }
+  :root[data-theme="dark"] .library-footer { border-color:var(--line) }
+
+  :root[data-theme="dark"] .library-heading h2,
+  :root[data-theme="dark"] .status-filter,
+  :root[data-theme="dark"] .local-badge,
+  :root[data-theme="dark"] .eyebrow,
+  :root[data-theme="dark"] .topbar .eyebrow,
+  :root[data-theme="dark"] .topbar-note,
+  :root[data-theme="dark"] .welcome .welcome-footnote,
+  :root[data-theme="dark"] .welcome-steps span,
+  :root[data-theme="dark"] .document-meta,
+  :root[data-theme="dark"] .stage-button,
+  :root[data-theme="dark"] .field-hint,
+  :root[data-theme="dark"] .stage-note,
+  :root[data-theme="dark"] .requirements-table th,
+  :root[data-theme="dark"] .requirements-table label,
+  :root[data-theme="dark"] .requirements-empty,
+  :root[data-theme="dark"] .preview-label,
+  :root[data-theme="dark"] .review-stat span,
+  :root[data-theme="dark"] .review-checklist li,
+  :root[data-theme="dark"] .assistant-header p,
+  :root[data-theme="dark"] .handoff-notice p,
+  :root[data-theme="dark"] .conversation-empty,
+  :root[data-theme="dark"] .chat-role,
+  :root[data-theme="dark"] .assistant-compose label,
+  :root[data-theme="dark"] .assistant-compose>p,
+  :root[data-theme="dark"] .proposal>p { color:var(--muted) }
+
+  :root[data-theme="dark"] .count,
+  :root[data-theme="dark"] .status-pill,
+  :root[data-theme="dark"] .completion-badge,
+  :root[data-theme="dark"] .prd-view-status { background:#252230; border-color:#494254; color:#cfbfdc }
+  :root[data-theme="dark"] .status-pill[data-status="Approved"],
+  :root[data-theme="dark"] .completion-badge.verified,
+  :root[data-theme="dark"] .prd-view-status.complete { background:#14281d; border-color:#355741; color:#a2dfb7 }
+  :root[data-theme="dark"] .status-pill[data-status="In review"],
+  :root[data-theme="dark"] .completion-badge.to-discuss,
+  :root[data-theme="dark"] .completion-badge.needs-work,
+  :root[data-theme="dark"] .completion-badge.needs-recheck,
+  :root[data-theme="dark"] .prd-view-status.pending,
+  :root[data-theme="dark"] .completion-warning { background:#302615; border-color:#69522c; color:#efcb8f }
+  :root[data-theme="dark"] .status-pill[data-status="Archived"] { background:#292b31; color:#b8bac4 }
+  :root[data-theme="dark"] .document-meta .dirty,
+  :root[data-theme="dark"] .requirements-table .proposed-label,
+  :root[data-theme="dark"] .review-checklist li.missing,
+  :root[data-theme="dark"] .review-checklist li.missing .check-icon,
+  :root[data-theme="dark"] .action-warnings { color:#efcb8f }
+
+  :root[data-theme="dark"] .privacy-banner,
+  :root[data-theme="dark"] .message,
+  :root[data-theme="dark"] .proposal { background:#201a2d; border-color:#493b61; color:#d6c4ef }
+  :root[data-theme="dark"] .privacy-banner.acknowledged { background:#17241b; border-color:#354b39; color:#b5cfb6 }
+  :root[data-theme="dark"] .message.error,
+  :root[data-theme="dark"] .dialog .inline-error { background:#321c1c; border-color:#69413d; color:var(--red) }
+  :root[data-theme="dark"] .inline-error { color:var(--red) }
+
+  :root[data-theme="dark"] .segmented,
+  :root[data-theme="dark"] .stage-note,
+  :root[data-theme="dark"] .review-overview,
+  :root[data-theme="dark"] .handoff-notice,
+  :root[data-theme="dark"] .chat-content,
+  :root[data-theme="dark"] .completion-list,
+  :root[data-theme="dark"] .history-list { background:#191b22; border-color:var(--line) }
+  :root[data-theme="dark"] .segmented button { color:var(--muted) }
+  :root[data-theme="dark"] .segmented button.active { background:#30253f; color:#d6c4ff; box-shadow:none }
+  :root[data-theme="dark"] .stage-button .stage-number { border-color:#55515e }
+  :root[data-theme="dark"] .stage-button.active { color:var(--accent); border-color:var(--accent) }
+  :root[data-theme="dark"] .stage-button.complete .stage-number { background:var(--lavender); border-color:#493b61; color:var(--accent) }
+  :root[data-theme="dark"] .stage-note strong,
+  :root[data-theme="dark"] .review-stat strong,
+  :root[data-theme="dark"] .starter-card p,
+  :root[data-theme="dark"] .chat-content,
+  :root[data-theme="dark"] pre { color:var(--ink) }
+  :root[data-theme="dark"] .handoff-notice strong,
+  :root[data-theme="dark"] .starter-card .text-button,
+  :root[data-theme="dark"] .chat-item.assistant-reply .chat-role,
+  :root[data-theme="dark"] .proposal h3,
+  :root[data-theme="dark"] .proposal-field label { color:var(--accent) }
+  :root[data-theme="dark"] .starter-card { background:#17141f; border-color:#40334f }
+  :root[data-theme="dark"] .chat-item.user .chat-content { background:#251e38; color:#ddd0ef }
+  :root[data-theme="dark"] .proposal-field { border-color:#493b61 }
+  :root[data-theme="dark"] .proposal-field pre { color:var(--ink) }
+
+  :root[data-theme="dark"] .requirements-table,
+  :root[data-theme="dark"] .preview-content,
+  :root[data-theme="dark"] .prd-view-document,
+  :root[data-theme="dark"] .completion-summary,
+  :root[data-theme="dark"] .completion-layout,
+  :root[data-theme="dark"] .history-layout { background:var(--card) }
+  :root[data-theme="dark"] .requirements-table thead,
+  :root[data-theme="dark"] .prd-view-table thead th { background:#20232b }
+  :root[data-theme="dark"] .prd-view-document { box-shadow:none }
+  :root[data-theme="dark"] .dialog { background:#111318 }
+  :root[data-theme="dark"] .dialog::backdrop { background:#000b }
+  :root[data-theme="dark"] .completion-item:hover,
+  :root[data-theme="dark"] .completion-item.active,
+  :root[data-theme="dark"] .history-item:hover,
+  :root[data-theme="dark"] .history-item.active { background:#282331; border-color:#574668 }
+  :root[data-theme="dark"] .completion-summary progress::-webkit-progress-bar { background:#30333c }
+  :root[data-theme="dark"] .completion-summary progress::-webkit-progress-value { background:var(--green) }
+  :root[data-theme="dark"] .completion-summary progress::-moz-progress-bar { background:var(--green) }
+}

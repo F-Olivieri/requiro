@@ -1,0 +1,7 @@
+SIMULATED EXAMPLE ONLY. NO REAL TEST WAS RUN.
+
+Requirement R-001: remaining seats
+Fictional fixture: seat limit 2; confirmed signups 1; displayed availability 1.
+Fictional fixture: seat limit 2; confirmed signups 2; displayed status Full.
+Mock result: both illustrative checks pass.
+This file is not a real test log.

@@ -1,0 +1,180 @@
+{
+  "notice": "Simulated examples only. Complete and Needs work are mock verdicts. No real test was run.",
+  "examples": [
+    {
+      "file": "tool-library.json",
+      "reviews": [
+        {
+          "requirementId": "R-001",
+          "owners": [
+            "Frontend engineer"
+          ],
+          "status": "Complete",
+          "reviewer": "Test engineer",
+          "proof": "Simulated example only; no real test was run. The mock check shows named tools with available, booked and out-of-service states, plus an empty-catalog message.",
+          "notes": "Mock verdict: the listed catalog checks passed.",
+          "attachments": [
+            "tool-library-proof.txt"
+          ]
+        },
+        {
+          "requirementId": "R-002",
+          "owners": [
+            "Application engineer",
+            "Test engineer"
+          ],
+          "status": "Needs work",
+          "reviewer": "Test engineer",
+          "proof": "Simulated example only; no real test was run. The mock failure accepts a request whose end equals its start.",
+          "notes": "Reject equal start and end times before this requirement can be Complete."
+        },
+        {
+          "requirementId": "R-003",
+          "owners": [
+            "Application engineer"
+          ],
+          "status": "To discuss",
+          "notes": "Confirmed bookings must not overlap. Should an unconfirmed request also hold availability?"
+        },
+        {
+          "requirementId": "R-004",
+          "owners": [
+            "Application engineer"
+          ],
+          "status": "Not reviewed"
+        },
+        {
+          "requirementId": "R-006",
+          "owners": [
+            "Application engineer"
+          ],
+          "status": "To discuss",
+          "notes": "Decide reminder timing and delivery method. The reminder acceptance criteria are still incomplete."
+        }
+      ]
+    },
+    {
+      "file": "workshop-waitlist.json",
+      "reviews": [
+        {
+          "requirementId": "R-001",
+          "owners": [
+            "Frontend engineer"
+          ],
+          "status": "Complete",
+          "reviewer": "Test engineer",
+          "proof": "Simulated example only; no real test was run. The mock count follows confirmed signups and shows Full at zero available seats.",
+          "notes": "Mock availability checks passed.",
+          "attachments": [
+            "workshop-proof.txt"
+          ]
+        },
+        {
+          "requirementId": "R-002",
+          "owners": [
+            "Application engineer",
+            "Test engineer"
+          ],
+          "status": "Complete",
+          "reviewer": "Test engineer",
+          "proof": "Simulated example only; no real test was run. A repeated signup keeps one confirmed seat. Competing requests for one remaining seat produce one confirmation.",
+          "notes": "Mock duplicate and last-seat checks passed."
+        },
+        {
+          "requirementId": "R-003",
+          "owners": [
+            "Application engineer"
+          ],
+          "status": "Complete",
+          "reviewer": "Test engineer",
+          "proof": "Simulated example only; no real test was run. Joining a full session creates one waitlist entry and displays its position; repeating the request creates no additional waitlist entry.",
+          "notes": "Mock waitlist-entry checks passed."
+        },
+        {
+          "requirementId": "R-004",
+          "owners": [
+            "Application engineer"
+          ],
+          "status": "Needs work",
+          "reviewer": "Test engineer",
+          "proof": "Simulated example only; no real test was run. The mock failure removes the signup but does not release the occupied seat.",
+          "notes": "Release exactly one seat on cancellation and make retries safe."
+        },
+        {
+          "requirementId": "R-005",
+          "owners": [
+            "Application engineer"
+          ],
+          "status": "To discuss",
+          "notes": "Agree how long an offer remains open and how the participant accepts it."
+        },
+        {
+          "requirementId": "R-006",
+          "owners": [
+            "Test engineer"
+          ],
+          "status": "Not reviewed"
+        }
+      ]
+    },
+    {
+      "file": "garden-task-board.json",
+      "reviews": [
+        {
+          "requirementId": "R-001",
+          "owners": [
+            "Frontend engineer",
+            "Test engineer"
+          ],
+          "status": "Complete",
+          "reviewer": "Test engineer",
+          "proof": "Simulated example only; no real test was run. A valid title creates one open task, a blank title shows an error, and the saved task remains after reopening.",
+          "notes": "Simulated example only; no real test was run. Mock team verdict: the requirement meets its listed acceptance criteria.",
+          "attachments": [
+            "garden-proof.txt"
+          ]
+        },
+        {
+          "requirementId": "R-002",
+          "owners": [
+            "Application engineer"
+          ],
+          "status": "Complete",
+          "reviewer": "Test engineer",
+          "proof": "Simulated example only; no real test was run. The mock task shows one owner or Unassigned. Reassignment keeps one task and replaces its owner.",
+          "notes": "Simulated example only; no real test was run. Mock team verdict: the requirement meets its listed acceptance criteria."
+        },
+        {
+          "requirementId": "R-003",
+          "owners": [
+            "Frontend engineer"
+          ],
+          "status": "Complete",
+          "reviewer": "Test engineer",
+          "proof": "Simulated example only; no real test was run. An empty completion note keeps the task open and shows a validation message. A nonempty note allows completion and remains readable after saving.",
+          "notes": "Simulated example only; no real test was run. Mock team verdict: the requirement meets its listed acceptance criteria."
+        },
+        {
+          "requirementId": "R-004",
+          "owners": [
+            "Application engineer"
+          ],
+          "status": "Complete",
+          "reviewer": "Test engineer",
+          "proof": "Simulated example only; no real test was run. Reopening changes the task to open while keeping its earlier completion note in history.",
+          "notes": "Simulated example only; no real test was run. Mock team verdict: the requirement meets its listed acceptance criteria."
+        },
+        {
+          "requirementId": "R-005",
+          "owners": [
+            "Frontend engineer"
+          ],
+          "status": "Complete",
+          "reviewer": "Test engineer",
+          "proof": "Simulated example only; no real test was run. My tasks shows only tasks assigned to the current volunteer. All tasks restores the full list. Neither filter changes a task or its owner.",
+          "notes": "Simulated example only; no real test was run. Mock team verdict: the requirement meets its listed acceptance criteria."
+        }
+      ]
+    }
+  ]
+}
