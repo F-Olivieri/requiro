@@ -27,7 +27,7 @@ function badge(status, onClick, label) {
   return node;
 }
 
-export function renderPrdView(container, {doc, mode, verification = null, savedRevision = doc.revision, onReview, onComment}) {
+export function renderPrdView(container, {doc, mode, verification = null, savedRevision = doc.revision, onReview, onComment, onEditSection}) {
   if (!['document', 'table'].includes(mode)) throw new Error('Choose Document or Table view.');
   selectionCleanups.get(container)?.();
   const selectionButtons = [];
@@ -110,7 +110,16 @@ export function renderPrdView(container, {doc, mode, verification = null, savedR
   }
   function narrativeSection(key, label) {
     const section = el('section', 'prd-view-section');
-    section.append(el('h3', '', label), el('p', 'prd-view-text', text(doc.sections[key])));
+    const heading = el('h3', 'prd-view-section-heading', label);
+    if (onEditSection) {
+      const edit = el('button', 'text-button prd-view-edit', 'Edit');
+      edit.type = 'button';
+      edit.setAttribute('aria-label', `Edit ${label.toLowerCase()}`);
+      edit.setAttribute('data-edit-section', key);
+      edit.addEventListener('click', () => onEditSection(key));
+      heading.append(edit);
+    }
+    section.append(heading, el('p', 'prd-view-text', text(doc.sections[key])));
     return section;
   }
   const view = el('article', `prd-view prd-view-${mode}`);

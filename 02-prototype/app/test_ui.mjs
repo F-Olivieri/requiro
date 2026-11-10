@@ -49,6 +49,7 @@ const context = vm.createContext({});
 vm.runInContext(source.replace(/^import .*;\n/gm, '').replace(/^export function /gm, 'function '), context);
 const controls = new Map();
 const libraryButtons = [{disabled: false}, {disabled: false}];
+const visualizationButtons = [];
 context.document = {
   querySelector(selector) {
     if (!controls.has(selector)) controls.set(selector, {disabled: false});
@@ -56,6 +57,7 @@ context.document = {
   },
   querySelectorAll(selector) {
     if (selector === '#doc-list button') return libraryButtons;
+    if (selector === '#prd-visualization button') return visualizationButtons;
     assert.ok(['#prd-visualization button', '#editor-content input, #editor-content textarea, #editor-content select, #editor-content button[data-edit]', '[data-document-action]', '#proposal button'].includes(selector), selector);
     return [];
   },
@@ -86,6 +88,51 @@ assert.equal(rendered.at(-1).doc.sections.requirements[0].behavior, 'Unsaved dra
 assert.equal(rendered.at(-1).savedRevision, null, 'Unsaved drafts must not inherit a completion verdict.');
 assert.equal(vm.runInContext('state.saved.sections.requirements[0].behavior', context), 'Browse the list', 'Switching must not save the draft.');
 assert.equal(controls.get('#preview-note').textContent.includes('unsaved edits'), true);
+
+// Section shortcuts use the existing editor without saving or discarding drafts.
+let focused;
+context.document.querySelector = selector => {
+  if (!controls.has(selector)) controls.set(selector, {classList: {toggle() {}}, setAttribute() {}});
+  const node = controls.get(selector);
+  node.focus = () => { focused = selector; };
+  return node;
+};
+context.renderStageNav = context.renderEditor = context.renderStageFooter = () => {};
+const shortcutDraft = vm.runInContext('JSON.stringify(state.doc)', context);
+const shortcutSaved = vm.runInContext('JSON.stringify(state.saved)', context);
+vm.runInContext('state.consent = true;', context);
+for (const [stage, sectionKeys] of Object.entries({Discover: ['problem', 'users', 'outcomes'], Scope: ['useCases', 'scope', 'nonGoals', 'inputsOutputs'], Requirements: ['quality'], Review: ['metrics', 'risks', 'decisions', 'evidence']})) {
+  for (const key of sectionKeys) {
+    vm.runInContext('state.view = "document"; renderPreview();', context);
+    rendered.at(-1).onEditSection(key);
+    assert.equal(vm.runInContext('state.stage', context), stage);
+    assert.equal(vm.runInContext('state.view', context), 'edit');
+    assert.equal(focused, `#field-${key}`);
+    assert.equal(vm.runInContext('JSON.stringify(state.doc)', context), shortcutDraft);
+    assert.equal(vm.runInContext('JSON.stringify(state.saved)', context), shortcutSaved);
+  }
+}
+visualizationButtons.push({dataset: {editSection: 'problem'}}, {dataset: {}});
+vm.runInContext('state.view = "table"; state.consent = false; updateControls(); editSection("problem");', context);
+assert.equal(vm.runInContext('state.view', context), 'table');
+assert.equal(focused, '#privacy-consent');
+assert.ok(controls.get('#global-message').textContent.includes('Acknowledge'));
+assert.equal(visualizationButtons[0].disabled, false, 'Edit stays available to explain the acknowledgement gate.');
+assert.equal(visualizationButtons[1].disabled, true, 'Existing dirty-draft review controls keep their gate.');
+vm.runInContext('state.consent = true; state.doc.status = "Archived"; updateControls(); editSection("problem");', context);
+assert.equal(visualizationButtons[0].disabled, true);
+assert.equal(focused, '#archive-prd');
+assert.ok(controls.get('#global-message').textContent.includes('Reopen'));
+vm.runInContext('state.doc.status = "Approved"; state.doc.approvedRevision = 2; editSection("problem");', context);
+assert.equal(vm.runInContext('state.doc.status', context), 'Approved', 'Opening the editor does not change approval.');
+assert.equal(vm.runInContext('state.doc.approvedRevision', context), 2);
+focused = null;
+vm.runInContext('state.view = "document"; state.busy = true; updateControls(); editSection("users"); state.busy = false; editSection("unknown");', context);
+assert.equal(visualizationButtons[0].disabled, true);
+assert.equal(focused, null);
+assert.equal(vm.runInContext('state.view', context), 'document');
+vm.runInContext('state.doc.status = "Draft"; state.doc.approvedRevision = null;', context);
+visualizationButtons.length = 0;
 
 // An earlier review fetch must not overwrite a newer review for the same PRD revision.
 context.renderPreview = () => {};

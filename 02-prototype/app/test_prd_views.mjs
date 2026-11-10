@@ -58,6 +58,19 @@ for (const mode of ['document', 'table', 'document']) {
   }
   assert.equal(JSON.stringify({doc, verification}), baseline, 'Switching views never mutates PRD or review data.');
 }
+for (const mode of ['document', 'table']) {
+  const edited = [];
+  renderPrdView(container, {doc, mode, verification, onEditSection: key => edited.push(key)});
+  const buttons = container.query('button').filter(node => node.attributes['data-edit-section']);
+  assert.equal(buttons.length, sectionKeys.length, `${mode} offers editing for every text section.`);
+  for (const button of buttons) {
+    assert.ok(button.attributes['aria-label'].startsWith('Edit '));
+    assert.equal(button.type, 'button');
+    button.listeners.click();
+  }
+  assert.deepEqual(edited, sectionKeys, 'Each Edit button routes to its own field.');
+  assert.equal(JSON.stringify({doc, verification}), baseline, 'Edit navigation preserves PRD and review data.');
+}
 renderPrdView(container, {doc, mode: 'table', verification, savedRevision: null});
 assert.ok(container.textContent.includes('Needs recheck') && !container.textContent.includes('Complete'), 'Unsaved draft cannot display an old completion as current.');
 assert.ok(container.textContent.includes('To discuss'), 'Open discussion stays pending on a draft.');

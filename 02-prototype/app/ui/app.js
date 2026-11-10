@@ -202,7 +202,7 @@ function updateControls() {
   $('#comments-prd').disabled = state.busy || !hasDoc;
   for (const button of document.querySelectorAll('#doc-list button')) button.disabled = state.busy;
   for (const id of ['edit-tab', 'document-tab', 'table-tab']) $(`#${id}`).disabled = state.busy;
-  for (const button of document.querySelectorAll('#prd-visualization button')) button.disabled = state.busy || (changed && !state.consent) || button.dataset.commentSelection === 'true' && button.dataset.selectionValid !== 'true';
+  for (const button of document.querySelectorAll('#prd-visualization button')) button.disabled = state.busy || (button.dataset.editSection ? state.doc?.status === 'Archived' : changed && !state.consent) || button.dataset.commentSelection === 'true' && button.dataset.selectionValid !== 'true';
   if (!hasDoc) {
     $('#copy-packet').disabled = true;
     $('#paste-response').disabled = true;
@@ -437,6 +437,21 @@ function renderReview(container) {
   card.append(actions, el('p', 'review-explanation', dirty() ? 'Save your changes before changing review or approval status.' : 'Approval records an explicit decision. Editing an approved document creates a new draft when saved.'));
   container.append(card);
 }
+function editSection(key) {
+  if (!state.doc || state.busy) return;
+  const stage = stages.find(stage => stageFields[stage].includes(key));
+  if (!stage) return;
+  if (state.doc.status === 'Archived') {
+    message('Reopen this PRD before editing its wording.');
+    $('#archive-prd').focus();
+    return;
+  }
+  if (!requireConsent()) return;
+  message('');
+  state.view = 'edit';
+  setStage(stage);
+  $(`#field-${key}`).focus();
+}
 function renderPreview() {
   for (const [id, mode] of [['edit-tab', 'edit'], ['document-tab', 'document'], ['table-tab', 'table']]) {
     $(`#${id}`).classList.toggle('active', state.view === mode);
@@ -447,12 +462,12 @@ function renderPreview() {
   $('#preview-content').hidden = editing;
   $('#stage-nav').hidden = !editing;
   $('#stage-footer').hidden = !editing;
-  $('#stage-subtitle').textContent = editing ? stageDescriptions[state.stage] : 'One PRD. Choose how to read it. Use Guided edit to change its wording.';
+  $('#stage-subtitle').textContent = editing ? stageDescriptions[state.stage] : state.doc?.status === 'Archived' ? 'Choose Reopen draft to edit this archived PRD.' : 'Choose Edit beside a section to change its wording. Guided edit shows all editing steps.';
   if (!state.doc || editing) return;
   $('#preview-note').textContent = dirty() ? 'Current draft includes unsaved edits. Saved proof needs a fresh review before this draft can be marked Complete.' : `Saved PRD revision ${state.saved.revision}. Both views use the same requirements and review records.`;
   $('#review-load-state').textContent = state.verificationLoading ? 'Loading saved review details…' : state.verificationError;
   $('#review-load-state').hidden = !state.verificationLoading && !state.verificationError;
-  renderPrdView($('#prd-visualization'), {doc: state.doc, mode: state.view, verification: state.verification, savedRevision: dirty() ? null : state.saved.revision, onReview: (requirementId, options) => run(() => changeReviewStatus(requirementId, options)), onComment: payload => run(() => commentRequirement(payload))});
+  renderPrdView($('#prd-visualization'), {doc: state.doc, mode: state.view, verification: state.verification, savedRevision: dirty() ? null : state.saved.revision, onReview: (requirementId, options) => run(() => changeReviewStatus(requirementId, options)), onComment: payload => run(() => commentRequirement(payload)), onEditSection: editSection});
   updateControls();
 }
 function renderConversation() {

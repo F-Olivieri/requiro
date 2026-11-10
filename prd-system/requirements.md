@@ -132,3 +132,11 @@ These are requested Must requirements for personal course use.
 
 This setup is for the owner's private use. It does not provide access for other
 team members. Use only fictional or approved public nonconfidential course data.
+
+## Edit PRD text sections
+
+This is a requested Must requirement.
+
+| ID | Requirement | Done when |
+| --- | --- | --- |
+| R-035 | Show an Edit button beside each PRD text section in Document view and under Other PRD sections in Table view. | Edit opens Guided edit at the matching field, including The problem, Who it is for and The intended outcome. Existing unsaved changes remain intact. Opening the editor does not save or create a revision. If the material-use checkbox is unchecked, explain what is needed and focus it. Archived PRDs show that they must be reopened before editing. |

@@ -66,8 +66,11 @@ Choose **Document** for the full PRD with headings and paragraphs. Choose
 details to read its acceptance criteria, proof and other metadata.
 
 Both views use the same PRD and requirement records. Switching views creates no
-copy, saves no revision and preserves unsaved edits. **Guided edit** changes the
-shared draft. Click a **review status** or **Change** under Action to select
+copy, saves no revision and preserves unsaved edits. Choose **Edit** beside a
+text section to open its field in **Guided edit**. In Table view, first expand
+**Other PRD sections**. Acknowledge the material-use statement to enable editing,
+then choose **Save changes** when ready. Archived PRDs must be reopened first.
+Click a **review status** or **Change** under Action to select
 Complete, To discuss or Needs work. Add a reviewer and notes where needed, then
 choose **Save status**. **Open full review** opens the owners, proof and attachment
 editor. Both views use this same review flow.

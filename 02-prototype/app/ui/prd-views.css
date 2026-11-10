@@ -17,6 +17,8 @@
 .prd-view-identity { color:var(--muted); font-size:11px; margin:3px 0 }
 .prd-view-section { margin-top:28px }
 .prd-view-section > h3 { padding-bottom:7px; border-bottom:1px solid var(--line); margin-bottom:12px }
+.prd-view-section-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px }
+.prd-view-edit { font-size:12px }
 .prd-view-text { white-space:pre-wrap; overflow-wrap:anywhere }
 .prd-view-requirement { margin:20px 0 28px; break-inside:avoid }
 .prd-view-requirement-heading { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:9px }
@@ -87,6 +89,7 @@
   .prd-view-review { padding:6px; font-size:10px }
 }
 @media print {
+  .prd-view-edit { display:none }
   .prd-comment-actions { display:none }
   .prd-view-document { max-width:none; border:0; box-shadow:none; padding:0 }
   .prd-view-review { display:none }
