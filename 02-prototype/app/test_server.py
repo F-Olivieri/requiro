@@ -376,7 +376,7 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(json.loads(payload)['revision'], doc['revision'] + 1)
 
     def test_static_path_traversal_cannot_read_source_or_data(self):
-        for path in ('/server.py', '/juno.sqlite3', '/../server.py', '/%2e%2e/server.py',
+        for path in ('/server.py', '/requiro.sqlite3', '/juno.sqlite3', '/../server.py', '/%2e%2e/server.py',
                      '/..%2fserver.py', '/api/../server.py', '/app.js/../server.py'):
             with self.subTest(path=path):
                 status, _, body = self.request(path=path)

@@ -256,7 +256,7 @@ class VerificationTests(unittest.TestCase):
         other = create_prd(self.store)
         self.assert_rejected(404, lambda: self.verification.attachment(other['id'], 'R-001', attachment_id))
         self.assert_rejected(404, lambda: self.verification.attachment(self.doc['id'], 'R-002', attachment_id))
-        self.assert_rejected(404, lambda: self.verification.attachment(self.doc['id'], 'R-001', '../juno.sqlite3'))
+        self.assert_rejected(404, lambda: self.verification.attachment(self.doc['id'], 'R-001', '../requiro.sqlite3'))
 
     def test_report_keeps_pending_rows_full_requirements_and_duplicate_named_proofs(self):
         item = self.update()
@@ -306,7 +306,7 @@ class VerificationTests(unittest.TestCase):
         app.mkdir(parents=True)
         legacy = app / '.juno-data'
         legacy.mkdir()
-        (scratch / 'juno.sqlite3').rename(legacy / 'juno.sqlite3')
+        (scratch / 'requiro.sqlite3').rename(legacy / 'juno.sqlite3')
         (scratch / 'attachments').rename(legacy / 'attachments')
         with patch.object(server, 'ROOT', app), patch.dict('os.environ', {}, clear=True):
             target = server.data_directory()

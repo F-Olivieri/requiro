@@ -2,7 +2,9 @@
 
 import contextlib
 import datetime
+import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import sqlite3
@@ -104,12 +106,66 @@ def approval_gaps(doc):
     return gaps
 
 
+def store_fingerprint(directory):
+    """Validate existing records without creating or repairing a database."""
+    paths = [Path(directory) / name for name in ('requiro.sqlite3', 'juno.sqlite3')]
+    existing = [path for path in paths if path.exists()]
+    if len(existing) > 1:
+        raise RuntimeError('Both Requiro and legacy database files exist. Resolve the conflict before starting; neither was changed.')
+    if not existing or not existing[0].is_file():
+        raise RuntimeError('The data directory has no recognized PRD database. No replacement was created.')
+    database = existing[0]
+    recovery_paths = paths if database.name == 'juno.sqlite3' else [paths[1]]
+    if any(Path(str(path) + suffix).exists() for path in recovery_paths for suffix in ('-wal', '-shm', '-journal')):
+        raise RuntimeError('The legacy database has SQLite recovery files. Stop all older Requiro servers and let the old version finish SQLite recovery before upgrading. No files were changed.')
+    digest = hashlib.sha256()
+    with contextlib.closing(sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True)) as db:
+        if db.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+            raise RuntimeError('The PRD database failed its integrity check. Migration stopped.')
+        expected = {'documents': ['id', 'data'], 'revisions': ['document_id', 'revision', 'data', 'reason']}
+        for table, columns in expected.items():
+            actual = [row[1] for row in db.execute('PRAGMA table_info(' + table + ')')]
+            if actual != columns:
+                raise RuntimeError('The PRD database schema is unrecognized. Migration stopped.')
+        for table, sql in db.execute("SELECT name, sql FROM sqlite_master WHERE type='table' ORDER BY name"):
+            digest.update(json.dumps([table, sql]).encode())
+            quoted = '"' + table.replace('"', '""') + '"'
+            for row in sorted(db.execute('SELECT * FROM ' + quoted), key=repr):
+                digest.update(json.dumps(row, ensure_ascii=False).encode())
+    return digest.hexdigest()
+
+
+def offline_store_fingerprint(directory):
+    """Check a stopped store before moving its database or directory."""
+    paths = [Path(directory) / name for name in ('requiro.sqlite3', 'juno.sqlite3')]
+    if any(Path(str(path) + suffix).exists() for path in paths for suffix in ('-wal', '-shm', '-journal')):
+        raise RuntimeError('The database has SQLite recovery files. Stop all older Requiro servers and let the old version finish SQLite recovery before upgrading. No files were changed.')
+    before = store_fingerprint(directory)
+    database = next(path for path in paths if path.exists())
+    try:
+        with contextlib.closing(sqlite3.connect(database.resolve().as_uri() + '?mode=rw', uri=True, timeout=0)) as db:
+            db.execute('BEGIN EXCLUSIVE')
+            db.rollback()
+    except sqlite3.OperationalError as exc:
+        raise RuntimeError('The database is in use. Stop all older Requiro servers before upgrading. No files were changed.') from exc
+    return before
+
+
 class Store:
     def __init__(self, directory):
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
-        self.path = self.directory / 'juno.sqlite3'
-        with self.connection() as db:
+        self.path = self.directory / 'requiro.sqlite3'
+        legacy = self.directory / 'juno.sqlite3'
+        if any(self.directory.iterdir()):
+            before = offline_store_fingerprint(self.directory) if legacy.exists() else store_fingerprint(self.directory)
+            if legacy.exists():
+                # Link first so simultaneous startup cannot overwrite another database.
+                os.link(legacy, self.path)
+                legacy.unlink()
+                if store_fingerprint(self.directory) != before:
+                    raise RuntimeError('The migrated database could not be verified. Startup stopped; data remains in requiro.sqlite3.')
+        with contextlib.closing(sqlite3.connect(self.path)) as db:
             db.executescript('''
                 CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, data TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS revisions (
@@ -132,7 +188,7 @@ class Store:
 
     @contextlib.contextmanager
     def connection(self):
-        db = sqlite3.connect(self.path, timeout=10, isolation_level=None)
+        db = sqlite3.connect(self.path.resolve().as_uri() + '?mode=rw', uri=True, timeout=10, isolation_level=None)
         try:
             yield db
         finally:

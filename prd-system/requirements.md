@@ -140,3 +140,11 @@ This is a requested Must requirement.
 | ID | Requirement | Done when |
 | --- | --- | --- |
 | R-035 | Show an Edit button beside each PRD text section in Document view and under Other PRD sections in Table view. | Edit opens Guided edit at the matching field, including The problem, Who it is for and The intended outcome. Existing unsaved changes remain intact. Opening the editor does not save or create a revision. If the material-use checkbox is unchecked, explain what is needed and focus it. Archived PRDs show that they must be reopened before editing. |
+
+## Use the Requiro storage name
+
+This is a requested Must requirement.
+
+| ID | Requirement | Done when |
+| --- | --- | --- |
+| R-036 | Use Requiro names for the saved database and its storage setting. | Existing saved work moves to the new database name without changing PRDs, revision history, comments, reviews, project links or proof files. The old storage setting still opens the same library. If files or settings conflict, or the database is busy, stop and explain how to continue. Never replace existing work with an empty library. |

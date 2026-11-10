@@ -156,9 +156,12 @@ authoring document, not the completion records or proof files.
 ## Storage and portability
 
 Document records and immutable revision history live in
-`data/prds/juno.sqlite3`, excluded from version control.
-The existing `juno.sqlite3` filename and `JUNO_DATA_DIR` setting are kept for
-compatibility. The name change does not move or rewrite saved records.
+`data/prds/requiro.sqlite3`, excluded from version control.
+Stop all older Requiro servers before upgrading. On startup, an existing
+`juno.sqlite3` is checked, renamed and checked again. The rename preserves all
+records and proof files. If both database names exist, or SQLite recovery files
+remain, startup stops without replacing data. Let the old version finish
+recovery and close before retrying; do not delete recovery files.
 
 Keep this directory when restarting the server. Completion records are in the
 same database, and original proof files are under `data/prds/attachments/`. Saved documents survive browser
@@ -181,19 +184,21 @@ integrations are not configured.
 02-prototype/app/server.py    Local HTTP/API adapter
 02-prototype/app/prd_store.py PRD model, validation, storage and export
 examples/reading-list.json    Fictional demonstration PRD
-data/prds/juno.sqlite3       Saved PRDs and revision history (not in version control)
+data/prds/requiro.sqlite3    Saved PRDs and revision history (not in version control)
 ```
 
 The UI reads and writes PRDs through the API. It contains no saved PRDs or
 embedded example document. The document module accepts an explicit storage
 directory and has no UI or HTTP dependency. Replacing the UI files does not
-replace the data. `JUNO_DATA_DIR` can point the server to an existing separate
-data directory; an explicitly configured directory is never silently migrated.
+replace the data. `REQUIRO_DATA_DIR` can point the server to an existing separate
+data directory. `JUNO_DATA_DIR` remains a compatible alias. If both settings are
+present, they must identify the same directory. A configured directory stays
+in place; only its old database filename is migrated.
 
 Stop all older Requiro server instances before upgrading this version. On the first
 start with default settings, a recognized legacy `02-prototype/app/.juno-data`
 directory is validated, moved whole to `data/prds`, and verified again. The move
-preserves documents, revisions and any database sidecars. If both locations
+preserves documents, revisions and proof files. If both locations
 exist, or a directory contains an unrecognized/corrupt store, startup stops
 rather than choosing one or creating an empty replacement. Migration never
 passes documents through import or changes their identities or approval history.

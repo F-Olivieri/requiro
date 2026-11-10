@@ -1,15 +1,13 @@
 """Local PRD workspace. Run with python3 server.py; no external services."""
 
 import argparse
-from contextlib import closing
-import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import sqlite3
 
-from prd_store import InputError, MAX_BYTES, Store, markdown, text
+from prd_store import InputError, MAX_BYTES, Store, markdown, text, offline_store_fingerprint, store_fingerprint as _store_fingerprint
 from verification import MAX_ATTACHMENT_BYTES, Verification
 from comments import Comments
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -199,35 +197,19 @@ class Handler(BaseHTTPRequestHandler):
     do_GET = do_POST = do_PUT = dispatch
 
 
-def _store_fingerprint(directory):
-    """Validate an existing store without creating a replacement."""
-    database = directory / 'juno.sqlite3'
-    if not database.is_file():
-        raise RuntimeError('The data directory has no recognized PRD database. No replacement was created.')
-    digest = hashlib.sha256()
-    with closing(sqlite3.connect(database.as_uri() + '?mode=rw', uri=True)) as db:
-        if db.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
-            raise RuntimeError('The PRD database failed its integrity check. Migration stopped.')
-        expected = {'documents': ['id', 'data'], 'revisions': ['document_id', 'revision', 'data', 'reason']}
-        for table, columns in expected.items():
-            actual = [row[1] for row in db.execute('PRAGMA table_info(' + table + ')')]
-            if actual != columns:
-                raise RuntimeError('The PRD database schema is unrecognized. Migration stopped.')
-        for table, sql in db.execute("SELECT name, sql FROM sqlite_master WHERE type='table' ORDER BY name"):
-            digest.update(json.dumps([table, sql]).encode())
-            quoted = '"' + table.replace('"', '""') + '"'
-            for row in sorted(db.execute('SELECT * FROM ' + quoted), key=repr):
-                digest.update(json.dumps(row, ensure_ascii=False).encode())
-    return digest.hexdigest()
-
-
 def data_directory():
     """Resolve storage independently of the UI and migrate the stopped legacy app."""
-    override = os.environ.get('JUNO_DATA_DIR')
-    if override is not None:
-        if not override.strip():
-            raise RuntimeError('JUNO_DATA_DIR must not be empty.')
-        configured = Path(override).expanduser().resolve()
+    overrides = []
+    for name in ('REQUIRO_DATA_DIR', 'JUNO_DATA_DIR'):
+        value = os.environ.get(name)
+        if value is not None:
+            if not value.strip():
+                raise RuntimeError(f'{name} must not be empty.')
+            overrides.append(Path(value).expanduser().resolve())
+    if overrides:
+        if len(set(overrides)) > 1:
+            raise RuntimeError('REQUIRO_DATA_DIR and JUNO_DATA_DIR point to different directories. Choose one library before starting; no files were changed.')
+        configured = overrides[0]
         if configured.exists() and any(configured.iterdir()):
             _store_fingerprint(configured)
         return configured
@@ -236,7 +218,7 @@ def data_directory():
     if legacy.exists():
         if target.exists():
             raise RuntimeError('Both old and new data directories exist. Resolve the conflict before starting; no data was moved.')
-        before = _store_fingerprint(legacy)
+        before = offline_store_fingerprint(legacy)
         target.parent.mkdir(parents=True, exist_ok=True)
         legacy.rename(target)
         if _store_fingerprint(target) != before:
