@@ -9,6 +9,7 @@ import zipfile
 from urllib.parse import quote
 
 from prd_store import InputError, markdown, missing, now, text
+from use_cases import use_case_text
 
 
 MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
@@ -212,6 +213,7 @@ class Verification:
         with self.store.connection() as db:
             db.execute('BEGIN')
             doc, items = self._snapshot(db, document_id)
+        use_cases = self.store.use_case_context(doc)
         counts = {status: sum(item['status'] == status for item in items) for status in STATUSES}
         lines = [f"# Completion review: {doc['title']}", '',
                  f"{document_id} · Current PRD revision {doc['revision']}", '',
@@ -223,13 +225,13 @@ class Verification:
                  '[Full current PRD](prd.md)', '']
         output = io.BytesIO()
         with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED) as bundle:
-            bundle.writestr('prd.md', markdown(doc))
+            bundle.writestr('prd.md', markdown(doc, use_cases))
             for requirement, item in zip(doc['sections']['requirements'], items):
                 gaps = required_gaps(requirement, item)
                 lines.extend([f"## {requirement['id']} · {status_label(item['status'])}", '',
                     'Required information gaps: ' + (', '.join(gaps) if gaps else 'None.'), '',
                     f"Priority: {requirement['priority']}" + (' (proposed)' if requirement['proposed'] else ''),
-                    f"Applies to: {requirement['appliesTo'] or 'Not documented'}",
+                    f"Use case: {use_case_text(doc, requirement, use_cases)}",
                     f"Outcome: {requirement['outcome'] or 'Not documented'}", '',
                     'Behavior:', requirement['behavior'] or 'Not documented', '',
                     'Acceptance:', requirement['acceptance'] or 'Not documented', '',

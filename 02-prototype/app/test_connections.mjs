@@ -25,7 +25,7 @@ const listeners = new Map();
 globalThis.window = {confirm: () => confirmDiscard, addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: name => listeners.delete(name)};
 const target = {id: 'target', title: 'Fictional destination', revision: 3, status: 'Draft'};
 const req = {id: 'R-005', priority: 'Must', behavior: '<b>Keep raw text</b>', acceptance: 'A sample reopens.', appliesTo: 'UC-01', outcome: 'Keep work'};
-const source = {id: 'source', title: 'Fictional source', revision: 7, sections: {requirements: [req]}};
+const source = {id: 'source', title: 'Fictional source', revision: 7, sections: {useCases: 'UC-01: A member keeps a draft.', requirements: [req]}};
 const projects = [{id: 'project-a', name: 'Fictional garden'}, {id: 'project-b', name: 'Fictional workshop'}];
 const calls = [];
 let conflict = false;
@@ -37,6 +37,8 @@ async function api(path, method = 'GET', data) {
   if (path.endsWith('/projects')) return {projectIds: method === 'PUT' ? data.projectIds : ['project-a']};
   if (path.endsWith('/relationships')) return {imports: structuredClone(imports), usedBy: []};
   if (path.endsWith('/import-requirements')) return {doc: {...target, revision: 4}, imports: []};
+  if (path === '/api/prds/source/use-cases?revision=7') return {documentId: 'source', prdRevision: 7, useCases: source.sections.useCases,
+    labels: {'R-005': {value: 'UC-01', label: 'A member keeps a draft.', reference: 'UC-01', imported: false}}};
   if (path === '/api/prds/source' || path === '/api/prds/source/history/7') return structuredClone(source);
   throw new Error(`Unexpected path ${path}`);
 }
@@ -53,6 +55,7 @@ let sourceChoice = field(test.dialog, 'reuse-source');
 assert.deepEqual(sourceChoice.children.map(node => node.value), ['', 'source'], 'Destination cannot import from itself.');
 sourceChoice.value = 'source'; await sourceChoice.fire('change');
 assert.ok(test.dialog.querySelectorAll('p').some(node => node.textContent === 'Behavior: <b>Keep raw text</b>'), 'Preview preserves wording as text.');
+assert.ok(test.dialog.querySelectorAll('p').some(node => node.textContent === 'Use case: A member keeps a draft. (reference: UC-01)'), 'Source preview names the use case.');
 const selection = test.dialog.querySelectorAll('input').find(node => node.value === 'R-005');
 selection.checked = true;
 await selection.parent.parent.parent.fire('change');

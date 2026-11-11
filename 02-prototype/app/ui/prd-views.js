@@ -1,4 +1,5 @@
 import {selectedRequirementAnchor} from './comments.js';
+import {useCaseInfo} from './use-cases.js';
 
 const selectionCleanups = new WeakMap();
 const sections = [
@@ -27,7 +28,7 @@ function badge(status, onClick, label) {
   return node;
 }
 
-export function renderPrdView(container, {doc, mode, verification = null, savedRevision = doc.revision, onReview, onComment, onEditSection}) {
+export function renderPrdView(container, {doc, mode, verification = null, useCasesContext = null, savedRevision = doc.revision, onReview, onComment, onEditSection}) {
   if (!['document', 'table'].includes(mode)) throw new Error('Choose Document or Table view.');
   selectionCleanups.get(container)?.();
   const selectionButtons = [];
@@ -83,7 +84,13 @@ export function renderPrdView(container, {doc, mode, verification = null, savedR
   };
   function requirementDetails(req) {
     const details = el('dl', 'prd-view-metadata');
-    markField(pair(details, 'Applies to', text(req.appliesTo)), req, 'appliesTo');
+    const useCase = useCaseInfo(doc, req, useCasesContext);
+    const applies = pair(details, 'Use case', useCase.label);
+    if (useCase.reference) {
+      const reference = el('div', 'field-hint', 'Reference: ');
+      reference.append(markField(el('span', '', req.appliesTo), req, 'appliesTo'));
+      applies.append(reference);
+    } else markField(applies, req, 'appliesTo');
     markField(pair(details, 'Intended outcome', text(req.outcome)), req, 'outcome');
     markField(pair(details, 'Acceptance criteria', text(req.acceptance)), req, 'acceptance');
     const item = reviewFor(req);

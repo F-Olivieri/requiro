@@ -66,6 +66,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, (UI_ROOT / 'connections.js').read_bytes(), 'text/javascript; charset=utf-8')
             if path == '/comments.js':
                 return self.reply(200, (UI_ROOT / 'comments.js').read_bytes(), 'text/javascript; charset=utf-8')
+            if path == '/use-cases.js':
+                return self.reply(200, (UI_ROOT / 'use-cases.js').read_bytes(), 'text/javascript; charset=utf-8')
             if path == '/api/example':
                 try:
                     example = json.loads((ROOT.parents[1] / 'examples' / 'reading-list.json').read_text())
@@ -83,6 +85,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self.reply(200, store.document_projects(parts[2]))
                 if len(parts) == 4 and parts[3] == 'relationships':
                     return self.reply(200, store.relationships(parts[2]))
+                if len(parts) == 4 and parts[3] == 'use-cases':
+                    revision = parse_qs(urlsplit(self.path).query).get('revision', [None])[0]
+                    if revision is not None and (not revision.isascii() or not revision.isdigit() or len(revision) > 19):
+                        raise InputError('Choose a positive revision within the supported numeric range.')
+                    doc = store.get(parts[2], int(revision) if revision is not None else None)
+                    return self.reply(200, store.use_case_context(doc))
                 if len(parts) == 4 and parts[3] == 'history':
                     return self.reply(200, store.history(parts[2]))
                 if len(parts) == 5 and parts[3] == 'history' and parts[4].isascii() and parts[4].isdigit():
@@ -104,7 +112,7 @@ class Handler(BaseHTTPRequestHandler):
                 doc = store.get(parts[2])
                 fmt = parse_qs(urlsplit(self.path).query).get('format', ['json'])[0]
                 if fmt == 'markdown':
-                    return self.reply(200, markdown(doc).encode(), 'text/markdown; charset=utf-8', doc['id'] + '.md')
+                    return self.reply(200, markdown(doc, store.use_case_context(doc)).encode(), 'text/markdown; charset=utf-8', doc['id'] + '.md')
                 if fmt != 'json':
                     raise InputError('Choose json or markdown export.')
                 return self.reply(200, doc, filename=doc['id'] + '.json')

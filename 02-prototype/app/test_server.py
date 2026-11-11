@@ -384,6 +384,21 @@ class HttpTests(unittest.TestCase):
                 self.assertNotIn(b'import sqlite3', body)
                 self.assertNotIn(b'SQLite format', body)
 
+    def test_use_case_context_and_readable_export_keep_saved_json_unchanged(self):
+        doc = self.http.store.create('Fictional named-use-case PRD', True)
+        doc['sections']['useCases'] = 'UC-01: A member keeps a draft.'
+        doc['sections']['requirements'] = [{**requirement(), 'appliesTo': 'UC-01'}]
+        doc = self.http.store.mutate(doc['id'], doc['revision'], candidate=doc)
+        path = f"/api/prds/{doc['id']}/use-cases?revision={doc['revision']}"
+        status, _, body = self.request(path=path)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)['labels']['R-001']['label'], 'A member keeps a draft.')
+        self.assertIn(b'Use case: A member keeps a draft. (reference: UC-01)', self.request(path=f"/api/export/{doc['id']}?format=markdown")[2])
+        self.assertEqual(json.loads(self.request(path=f"/api/export/{doc['id']}")[2]), doc)
+        for value in ('0', '-1', 'abc', '9' * 21):
+            self.assertEqual(self.request(path=f"/api/prds/{doc['id']}/use-cases?revision={value}")[0], 422)
+        self.assertEqual(self.http.store.get(doc['id']), doc)
+
     def test_packet_endpoint_enforces_current_revision_and_document_isolation(self):
         chosen = self.http.store.create('Fictional chosen list', True)
         other = self.http.store.create('Fictional unrelated list', True)

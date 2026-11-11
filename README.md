@@ -77,6 +77,18 @@ editor. Both views use this same review flow.
 When there are unsaved edits, **Save + change** saves the draft before review.
 Saved proof needs a fresh verdict after the PRD changes.
 
+Use **Use case** in Guided edit to choose a description from the PRD's use-case
+list. Write one situation per line in **Scope → Use cases**. Choose
+**Write a description / several use cases** for a custom scope. Choosing and
+saving a description updates the shared requirement.
+
+Both views, source previews, print and completion reports show use-case
+descriptions. Older codes remain as secondary references so existing comments
+keep their selected text. Copied requirements use their original source
+revision. A missing or conflicting definition is marked **Use case description
+missing**; Requiro does not guess its meaning. Displaying a description does
+not rewrite the PRD, approval or proof.
+
 ## Discuss requirement wording
 
 Select words in a saved requirement's wording, acceptance criteria, use case or
@@ -256,6 +268,7 @@ node test_workspace_controls.mjs
 node test_requirement_status.mjs
 node test_connections.mjs
 node test_comments.mjs
+node test_use_cases.mjs
 ```
 
 Behavioral evaluations are fictional and bounded. They do not establish time

@@ -71,6 +71,19 @@ for (const mode of ['document', 'table']) {
   assert.deepEqual(edited, sectionKeys, 'Each Edit button routes to its own field.');
   assert.equal(JSON.stringify({doc, verification}), baseline, 'Edit navigation preserves PRD and review data.');
 }
+const coded = {...doc, sections: {...doc.sections, useCases: 'UC-01: A member borrows a tool.', requirements: doc.sections.requirements.map(req => ({...req, appliesTo: 'UC-01'}))}};
+const context = {documentId: doc.id, prdRevision: 4, useCases: coded.sections.useCases,
+  labels: {'R-001': {value: 'UC-01', label: 'A member borrows a tool.', reference: 'UC-01', imported: false},
+    'R-002': {value: 'UC-01', label: 'A participant signs up.', reference: 'UC-01', imported: true}}};
+const codedBefore = JSON.stringify(coded);
+for (const mode of ['document', 'table']) {
+  renderPrdView(container, {doc: coded, mode, useCasesContext: context});
+  assert.ok(container.textContent.includes('A participant signs up.'), 'Imported use case keeps its original meaning.');
+  const marked = container.query('span').filter(node => node.attributes['data-comment-field'] === 'appliesTo');
+  assert.equal(marked.length, 2);
+  assert.ok(marked.every(node => node.textContent === 'UC-01'), 'Existing comment anchors retain the exact saved text.');
+  assert.equal(JSON.stringify(coded), codedBefore, 'Readable presentation never rewrites stored references.');
+}
 renderPrdView(container, {doc, mode: 'table', verification, savedRevision: null});
 assert.ok(container.textContent.includes('Needs recheck') && !container.textContent.includes('Complete'), 'Unsaved draft cannot display an old completion as current.');
 assert.ok(container.textContent.includes('To discuss'), 'Open discussion stays pending on a draft.');

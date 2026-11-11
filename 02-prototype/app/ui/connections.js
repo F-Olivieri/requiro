@@ -1,3 +1,5 @@
+import {useCaseText} from './use-cases.js';
+
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -74,11 +76,11 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
         const inspect = el('button', 'text-button', 'View original requirement');
         const original = el('div', 'source-preview'); original.hidden = true;
         inspect.addEventListener('click', () => perform(async () => {
-          const historical = await api(`${prdPath(row.sourceDocumentId)}/history/${row.sourceRevision}`);
+          const [historical, context] = await Promise.all([api(`${prdPath(row.sourceDocumentId)}/history/${row.sourceRevision}`), api(`${prdPath(row.sourceDocumentId)}/use-cases?revision=${row.sourceRevision}`)]);
           const req = historical.sections.requirements.find(item => item.id === row.sourceRequirementId);
           if (!req) throw new Error('The original requirement is unavailable.');
           original.replaceChildren(el('strong', '', `${historical.title} · v${historical.revision} · ${req.id}`));
-          requirementText(original, req); original.hidden = false;
+          requirementText(original, req, historical, context); original.hidden = false;
         }));
         card.append(open, inspect, original); container.append(card);
       }
@@ -98,6 +100,7 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
       choices.append(el('p', 'muted', 'Loading saved requirements…'));
       try {
         const loaded = await api(prdPath(source.value));
+        const context = await api(`${prdPath(loaded.id)}/use-cases?revision=${loaded.revision}`);
         if (request !== loadingSource || !dialog.open) return;
         sourceDoc = loaded;
         choices.replaceChildren(el('p', 'small muted', `${loaded.title} · saved revision ${loaded.revision}`));
@@ -109,7 +112,7 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
           const imported = relationships.imports.some(row => row.sourceDocumentId === loaded.id && row.sourceRevision === loaded.revision && row.sourceRequirementId === req.id);
           checkbox.dataset.imported = String(imported);
           label.append(checkbox, el('strong', '', `${req.id} · ${req.priority}${imported ? ' · Already imported' : ''}`));
-          card.append(label); requirementText(card, req); choices.append(card);
+          card.append(label); requirementText(card, req, loaded, context); choices.append(card);
         }
       } catch (error) { if (request === loadingSource) showError(error); }
       finally { controls(); }
@@ -171,8 +174,8 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
   return closed;
 }
 
-function requirementText(container, req) {
-  for (const [label, value] of [['Behavior', req.behavior], ['Acceptance criteria', req.acceptance], ['Applies to', req.appliesTo], ['Outcome', req.outcome]]) {
+function requirementText(container, req, doc, context) {
+  for (const [label, value] of [['Behavior', req.behavior], ['Acceptance criteria', req.acceptance], ['Use case', useCaseText(doc, req, context)], ['Outcome', req.outcome]]) {
     container.append(el('p', 'requirement-source-text', `${label}: ${value || 'Not documented'}`));
   }
 }

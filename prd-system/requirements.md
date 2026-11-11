@@ -148,3 +148,12 @@ This is a requested Must requirement.
 | ID | Requirement | Done when |
 | --- | --- | --- |
 | R-036 | Use Requiro names for the saved database and its storage setting. | Existing saved work moves to the new database name without changing PRDs, revision history, comments, reviews, project links or proof files. The old storage setting still opens the same library. If files or settings conflict, or the database is busy, stop and explain how to continue. Never replace existing work with an empty library. |
+
+## Choose use cases by description
+
+These are requested Must requirements.
+
+| ID | Requirement | Done when |
+| --- | --- | --- |
+| R-037 | Let people choose a requirement's use case by its description. | The editor offers named use cases and lets people write their own description, including several use cases. Document view, Table details, source previews, print and completion reports show the description. Older codes appear only as a secondary reference. |
+| R-038 | Preserve the meaning of existing use-case references. | Copied requirements use their original source context. Missing or conflicting descriptions are clearly identified instead of guessed. Displaying names does not change saved wording, approval, comments or proof. Only an explicit edit and save changes the requirement. |

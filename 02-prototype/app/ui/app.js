@@ -4,13 +4,14 @@ import {initWorkspaceControls} from './workspace-controls.js';
 import {openRequirementStatus} from './requirement-status.js';
 import {openConnections, projectLabel} from './connections.js';
 import {openComments} from './comments.js';
+import {useCaseControl, refreshUseCaseControls, useCaseText} from './use-cases.js';
 
 const stages = ['Discover', 'Scope', 'Requirements', 'Review'];
 const fields = {
   problem: ['The problem', 'What happens today, and what does it prevent people from doing?', 'Describe the situation, its consequence, and why it matters.'],
   users: ['Who it is for', 'Who experiences this problem? What do they need to accomplish?', 'Name the user group and their task. Use fictional or general descriptions.'],
   outcomes: ['The intended outcome', 'What should become better for these users?', 'Describe the change you want, without assuming a solution or inventing a target.'],
-  useCases: ['Use cases', 'Describe the situations this product will support.', 'Give each use case a name or ID so requirements can refer to it.'],
+  useCases: ['Use cases', 'Describe the situations this product will support.', 'Write one use case per line. Describe who does what; requirements can choose these descriptions.'],
   scope: ['In scope', 'What will this version do?', 'Include the supported users, workflows, and conditions.'],
   nonGoals: ['Out of scope', 'What are you deliberately leaving out?', 'Keep future ideas separate from the current commitment.'],
   inputsOutputs: ['Inputs and outputs', 'What does the user provide, and what should the product return?', 'Include important format, permission, and error conditions.'],
@@ -25,7 +26,7 @@ const stageDescriptions = {Discover: 'Start with the people and the problem.', S
 const starterQuestions = {Discover: 'Who runs into this problem, and what are they unable to do today?', Scope: 'Which use case must work in the first version, and what can wait?', Requirements: 'For one use case, what should happen and how would we test that it worked?', Review: 'Which requirement or assumption is least clear, and what evidence would resolve it?'};
 const $ = selector => document.querySelector(selector);
 const clone = value => JSON.parse(JSON.stringify(value));
-const state = {docs: [], doc: null, saved: null, composeDrafts: {}, stage: 'Discover', view: 'document', verification: null, verificationRequest: 0, verificationLoading: false, verificationError: '', consent: false, busy: false, proposal: null, proposalBaseline: null, pendingAction: null};
+const state = {docs: [], doc: null, saved: null, composeDrafts: {}, stage: 'Discover', view: 'document', useCasesContext: null, useCasesRequest: 0, verification: null, verificationRequest: 0, verificationLoading: false, verificationError: '', consent: false, busy: false, proposal: null, proposalBaseline: null, pendingAction: null};
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -96,9 +97,30 @@ function acceptSaved(doc) {
   state.proposal = null;
   state.verification = null;
   state.verificationError = '';
+  state.useCasesContext = null;
   updateSummary(doc);
   renderDocument();
   refreshVerification();
+  refreshUseCases();
+}
+async function refreshUseCases() {
+  const {id, revision} = state.saved;
+  const request = ++state.useCasesRequest;
+  const current = () => state.useCasesRequest === request && state.saved?.id === id && state.saved.revision === revision;
+  try {
+    const context = await api(`/api/prds/${encodeURIComponent(id)}/use-cases?revision=${revision}`);
+    if (!current()) return;
+    if (context.documentId !== id || context.prdRevision !== revision || !context.labels ||
+        state.saved.sections.requirements.some(req => context.labels[req.id]?.value !== req.appliesTo || typeof context.labels[req.id]?.label !== 'string' || typeof context.labels[req.id]?.imported !== 'boolean')) throw new Error('Use cases do not match this PRD revision.');
+    state.useCasesContext = context;
+    refreshUseCaseControls($('#editor-content'), state.doc, context);
+    renderPreview();
+  } catch {
+    if (current()) {
+      state.useCasesContext = null;
+      message('Use-case descriptions could not load. Saved references are preserved; reopen the PRD to try again.', true);
+    }
+  }
 }
 function markDirty() {
   updateControls();
@@ -368,7 +390,7 @@ function renderRequirements(container) {
       const behavior = el('td');
       behavior.append(el('span', 'requirement-id', req.id), requirementControl(req, 'behavior', 'What should happen?'), requirementControl(req, 'outcome', 'Intended outcome'));
       const scope = el('td');
-      scope.append(requirementControl(req, 'appliesTo', 'Applies to use case', 'input'), requirementControl(req, 'priority', 'Priority', 'select'));
+      scope.append(useCaseControl(state.doc, req, () => state.useCasesContext, markDirty), requirementControl(req, 'priority', 'Priority', 'select'));
       const proposedLabel = el('label', 'proposed-label');
       const proposed = el('input');
       proposed.type = 'checkbox';
@@ -467,7 +489,7 @@ function renderPreview() {
   $('#preview-note').textContent = dirty() ? 'Current draft includes unsaved edits. Saved proof needs a fresh review before this draft can be marked Complete.' : `Saved PRD revision ${state.saved.revision}. Both views use the same requirements and review records.`;
   $('#review-load-state').textContent = state.verificationLoading ? 'Loading saved review details…' : state.verificationError;
   $('#review-load-state').hidden = !state.verificationLoading && !state.verificationError;
-  renderPrdView($('#prd-visualization'), {doc: state.doc, mode: state.view, verification: state.verification, savedRevision: dirty() ? null : state.saved.revision, onReview: (requirementId, options) => run(() => changeReviewStatus(requirementId, options)), onComment: payload => run(() => commentRequirement(payload)), onEditSection: editSection});
+  renderPrdView($('#prd-visualization'), {doc: state.doc, mode: state.view, verification: state.verification, useCasesContext: state.useCasesContext, savedRevision: dirty() ? null : state.saved.revision, onReview: (requirementId, options) => run(() => changeReviewStatus(requirementId, options)), onComment: payload => run(() => commentRequirement(payload)), onEditSection: editSection});
   updateControls();
 }
 function renderConversation() {
@@ -568,7 +590,7 @@ async function openHistory() {
     const button = el('button', 'history-item');
     button.append(el('strong', '', `Revision ${item.revision} · ${item.status}`), el('span', '', formatDate(item.updatedAt)), el('span', '', item.reason || 'Saved'));
     button.addEventListener('click', () => run(async () => {
-      const doc = await api(`/api/prds/${encodeURIComponent(state.doc.id)}/history/${item.revision}`);
+      const [doc, context] = await Promise.all([api(`/api/prds/${encodeURIComponent(state.doc.id)}/history/${item.revision}`), api(`/api/prds/${encodeURIComponent(state.doc.id)}/use-cases?revision=${item.revision}`)]);
       list.querySelectorAll('button').forEach(node => node.classList.toggle('active', node === button));
       const detail = $('#history-detail'); detail.replaceChildren(el('h3', '', doc.title), el('p', 'small muted', `Revision ${doc.revision} · ${doc.status}`));
       const restore = el('button', 'button', 'Restore as new draft');
@@ -577,7 +599,7 @@ async function openHistory() {
       detail.append(restore);
       if (state.doc.status === 'Archived') detail.append(el('p', 'small muted', 'Reopen this PRD before restoring a revision.'));
       else if (dirty()) detail.append(el('p', 'small muted', 'Save or discard current edits before restoring.'));
-      detail.append(el('pre', '', buildMarkdown(doc)));
+      detail.append(el('pre', '', buildMarkdown(doc, context)));
     }, '#history-error'));
     list.append(button);
   }
@@ -697,14 +719,14 @@ function renderProposal() {
   actions.append(apply, dismiss); container.append(actions);
   updateControls();
 }
-export function buildMarkdown(doc) {
+export function buildMarkdown(doc, useCasesContext) {
   if (!doc) return '';
   const sections = doc.sections;
   let result = `# ${doc.title}\n\nDocument ID: ${doc.id}\nStatus: ${doc.status}\nRevision: ${doc.revision}\nLast approved revision: ${doc.approvedRevision ?? 'None'}\n\n`;
   for (const key of ['problem', 'users', 'outcomes', 'useCases', 'scope', 'nonGoals', 'inputsOutputs']) result += `## ${fields[key][0]}\n\n${sections[key] || '_Not documented._'}\n\n`;
   result += '## Requirements\n\n';
   if (!sections.requirements.length) result += '_No requirements documented._\n\n';
-  for (const req of sections.requirements) result += `### ${req.id} · ${req.priority}${req.proposed ? ' (proposed)' : ''}\n\n${req.behavior}\n\nApplies to: ${req.appliesTo}\n\nIntended outcome: ${req.outcome}\n\nAcceptance criteria: ${req.acceptance}\n\n`;
+  for (const req of sections.requirements) result += `### ${req.id} · ${req.priority}${req.proposed ? ' (proposed)' : ''}\n\n${req.behavior}\n\nUse case: ${useCaseText(doc, req, useCasesContext)}\n\nIntended outcome: ${req.outcome}\n\nAcceptance criteria: ${req.acceptance}\n\n`;
   for (const key of ['quality', 'metrics', 'risks', 'decisions', 'evidence']) result += `## ${fields[key][0]}\n\n${sections[key] || '_Not documented._'}\n\n`;
   return result;
 }
@@ -797,7 +819,8 @@ async function init() {
   window.addEventListener('beforeprint', () => {
     // 2026-11-09: working changes must not inherit the saved revision's approval label.
     const printDoc = state.doc && dirty() ? {...state.doc, status: 'Unsaved draft (changes not approved)', revision: `Not saved (based on saved revision ${state.saved.revision})`} : state.doc;
-    $('#print-document').textContent = printDoc ? buildMarkdown(printDoc) : 'No PRD is open.';
+    const printUseCases = state.useCasesContext && printDoc ? {...state.useCasesContext, prdRevision: printDoc.revision} : null;
+    $('#print-document').textContent = printDoc ? buildMarkdown(printDoc, printUseCases) : 'No PRD is open.';
   });
   window.addEventListener('beforeunload', event => { if (dirty() || hasUnsentCompose()) { event.preventDefault(); event.returnValue = ''; } });
   updateControls();

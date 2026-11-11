@@ -340,6 +340,7 @@ class UiSeparationHttpTests(unittest.TestCase):
             ('/logo.svg', 'logo.svg', 'image/svg+xml'),
             ('/app.js', 'app.js', 'text/javascript'),
             ('/prd-views.js', 'prd-views.js', 'text/javascript'),
+            ('/use-cases.js', 'use-cases.js', 'text/javascript'),
             ('/prd-views.css', 'prd-views.css', 'text/css'),
             ('/workspace-controls.js', 'workspace-controls.js', 'text/javascript'),
             ('/theme.css', 'theme.css', 'text/css'),

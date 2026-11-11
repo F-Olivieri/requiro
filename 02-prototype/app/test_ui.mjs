@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {validateResponse, buildMarkdown} from './ui/app.js';
+import {useCaseText} from './ui/use-cases.js';
 
 // Run with: node test_ui.mjs
 const keys = ['problem', 'users', 'outcomes', 'useCases', 'scope', 'nonGoals', 'inputsOutputs', 'quality', 'metrics', 'risks', 'decisions', 'evidence'];
@@ -45,7 +46,31 @@ assert.ok(buildMarkdown(doc).includes('R-001'), 'Preview must preserve stable re
 // Loading the script without a document skips its normal bootstrap; inject only
 // the controls used when a saved library exists but no PRD has been opened yet.
 const source = readFileSync(new URL('./ui/app.js', import.meta.url), 'utf8');
+const useCasesContext = vm.createContext({});
+vm.runInContext(source.replace(/^import .*;\n/gm, '').replace(/^export function /gm, 'function '), useCasesContext);
+const useCaseLoads = [], useCaseUpdates = [], useCaseMessages = [];
+useCasesContext.document = {querySelector: () => ({})};
+useCasesContext.api = path => new Promise((resolve, reject) => useCaseLoads.push({path, resolve, reject}));
+useCasesContext.refreshUseCaseControls = (...args) => useCaseUpdates.push(args);
+useCasesContext.renderPreview = () => {};
+useCasesContext.message = value => useCaseMessages.push(value);
+useCasesContext.fixture = structuredClone(doc);
+vm.runInContext('state.doc=clone(fixture); state.saved=clone(fixture);', useCasesContext);
+const oldUseCases = vm.runInContext('refreshUseCases()', useCasesContext);
+const newUseCases = vm.runInContext('refreshUseCases()', useCasesContext);
+const namedContext = {documentId: doc.id, prdRevision: doc.revision, useCases: '', labels: {'R-001': {value: 'UC-01', label: 'A member browses a list.', reference: 'UC-01', imported: false}}};
+useCaseLoads[1].resolve(namedContext); await newUseCases;
+useCaseLoads[0].reject(new Error('Earlier request failed')); await oldUseCases;
+assert.equal(vm.runInContext('state.useCasesContext', useCasesContext), namedContext, 'A stale error cannot clear newer descriptions.');
+assert.equal(useCaseMessages.length, 0);
+assert.equal(useCaseUpdates.length, 1);
+assert.equal(vm.runInContext('JSON.stringify(state.doc)', useCasesContext), JSON.stringify(doc), 'Loading labels must not change the draft.');
+const staleUseCases = vm.runInContext('refreshUseCases()', useCasesContext);
+vm.runInContext('state.doc={...state.doc,id:"other"}; state.saved=clone(state.doc);', useCasesContext);
+useCaseLoads[2].resolve(namedContext); await staleUseCases;
+assert.equal(useCaseUpdates.length, 1, 'Another PRD cannot receive an earlier PRD’s labels.');
 const context = vm.createContext({});
+context.useCaseText = useCaseText;
 vm.runInContext(source.replace(/^import .*;\n/gm, '').replace(/^export function /gm, 'function '), context);
 const controls = new Map();
 const libraryButtons = [{disabled: false}, {disabled: false}];
@@ -209,6 +234,7 @@ assert.equal(library.children[0].textContent, 'No PRDs match this search.');
 
 // 2026-11-09: unsent chat questions must survive saves and failed packet preparation.
 const composeContext = vm.createContext({});
+composeContext.useCaseText = useCaseText;
 vm.runInContext(source.replace(/^import .*;\n/gm, '').replace(/^export function /gm, 'function '), composeContext);
 const composeControls = new Map();
 const browserEvents = new Map();
@@ -225,7 +251,7 @@ composeContext.document = {
 composeContext.window = {addEventListener: (name, handler) => browserEvents.set(name, handler)};
 composeContext.navigator = {clipboard: {writeText: async () => { throw new Error('Clipboard unavailable in this check.'); }}};
 composeContext.initWorkspaceControls = () => {};
-vm.runInContext('updateSummary=()=>{}; renderStageNav=()=>{}; renderEditor=()=>{}; renderStageFooter=()=>{}; renderPreview=()=>{}; renderConversation=()=>{}; renderProposal=()=>{}; updateControls=()=>{}; refreshVerification=()=>{}; refreshLibrary=async()=>{}; message=()=>{};', composeContext);
+vm.runInContext('updateSummary=()=>{}; renderStageNav=()=>{}; renderEditor=()=>{}; renderStageFooter=()=>{}; renderPreview=()=>{}; renderConversation=()=>{}; renderProposal=()=>{}; updateControls=()=>{}; refreshVerification=()=>{}; refreshUseCases=()=>{}; refreshLibrary=async()=>{}; message=()=>{};', composeContext);
 const composeFixture = {...structuredClone(doc), stage: 'Discover', chat: []};
 composeContext.fixture = composeFixture;
 vm.runInContext('state.doc=clone(fixture); state.saved=clone(fixture); state.consent=true;', composeContext);
@@ -321,6 +347,7 @@ class HistoryNode {
   async click() { if (!this.disabled) for (const handler of this.listeners.click || []) await handler(); }
 }
 const historyContext = vm.createContext({});
+historyContext.useCaseText = useCaseText;
 vm.runInContext(source.replace(/^import .*;\n/gm, '').replace(/^export function /gm, 'function '), historyContext);
 const historyControls = new Map();
 historyContext.document = {

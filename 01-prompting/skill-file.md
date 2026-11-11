@@ -49,6 +49,8 @@ today, and what outcome should improve. Ask only what is still unknown.
 Assess these areas without imposing empty sections or invented answers:
 
 - Typical use cases: actor, trigger, inputs, action, output and consumer.
+  Write one named situation per line. For a requirement's applicable use case,
+  use its description rather than a bare code that the reader must look up.
 - Problem, intended outcomes, evidence and the current alternative.
 - Explicit scope, non-goals and variants that change the requirements.
 - Input and output contracts, normal behavior and important exceptions.

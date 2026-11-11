@@ -1,4 +1,4 @@
-const fieldLabels = {behavior: 'Requirement', acceptance: 'Acceptance criteria', appliesTo: 'Applies to', outcome: 'Intended outcome'};
+const fieldLabels = {behavior: 'Requirement', acceptance: 'Acceptance criteria', appliesTo: 'Use case', outcome: 'Intended outcome'};
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
   if (className) node.className = className;

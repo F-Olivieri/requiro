@@ -10,6 +10,8 @@ import re
 import sqlite3
 import uuid
 
+from use_cases import describe_use_case, use_case_text
+
 
 SECTION_KEYS = (
     'problem', 'users', 'outcomes', 'useCases', 'scope', 'nonGoals',
@@ -315,6 +317,41 @@ class Store:
             result['imports' if target_id == document_id else 'usedBy'].append(relation)
         return result
 
+    def use_case_context(self, doc):
+        def source_context(db, document, requirement, seen):
+            key = (document['id'], document['revision'], requirement['id'])
+            if key in seen:
+                return '', True
+            seen.add(key)
+            row = db.execute('SELECT source_document_id, source_revision, source_requirement_id, target_revision '
+                             'FROM requirement_imports WHERE target_document_id=? AND target_requirement_id=? '
+                             'AND target_revision<=? ORDER BY target_revision DESC LIMIT 1',
+                             (document['id'], requirement['id'], document['revision'])).fetchone()
+            if not row:
+                return document['sections']['useCases'], False
+            source_id, source_revision, source_req, target_revision = row
+            def snapshot(identity, revision):
+                saved = db.execute('SELECT data FROM revisions WHERE document_id=? AND revision=?', (identity, revision)).fetchone()
+                return json.loads(saved[0]) if saved else None
+            imported = snapshot(document['id'], target_revision)
+            original = next((r for r in imported['sections']['requirements'] if r['id'] == requirement['id']), None) if imported else None
+            if original and original['appliesTo'] != requirement['appliesTo']:
+                return document['sections']['useCases'], False
+            source = snapshot(source_id, source_revision)
+            source_requirement = next((r for r in source['sections']['requirements'] if r['id'] == source_req), None) if source else None
+            if not original or not source_requirement:
+                return '', True
+            definitions, _ = source_context(db, source, source_requirement, seen)
+            return definitions, True
+        with self.connection() as db:
+            db.execute('BEGIN')
+            labels = {}
+            for req in doc['sections']['requirements']:
+                definitions, imported = source_context(db, doc, req, set())
+                labels[req['id']] = {**describe_use_case(req['appliesTo'], definitions), 'imported': imported}
+        return {'documentId': doc['id'], 'prdRevision': doc['revision'],
+                'useCases': doc['sections']['useCases'], 'labels': labels}
+
     def relationships(self, document_id):
         with self.connection() as db:
             return self._relationships(db, document_id)
@@ -487,7 +524,7 @@ class Store:
             return result
 
 
-def markdown(doc):
+def markdown(doc, use_cases=None):
     lines = [f"# {doc['title']}", '',
              f"{doc['id']} · Revision {doc['revision']} · {doc['status']} · {doc['stage']}",
              f"Updated: {doc['updatedAt']}",
@@ -499,7 +536,7 @@ def markdown(doc):
         else:
             for req in doc['sections'][key]:
                 lines.extend([f"### {req['id']} · {req['priority']}" + (' (proposed)' if req['proposed'] else ''), '',
-                    f"Applies to: {req['appliesTo'] or 'Unresolved'}",
+                    f"Use case: {use_case_text(doc, req, use_cases)}",
                     f"Outcome: {req['outcome'] or 'Not documented'}", '',
                     req['behavior'] or 'Behavior: Not documented', '',
                     'Acceptance: ' + (req['acceptance'] or 'Not documented'), ''])
