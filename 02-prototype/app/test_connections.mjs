@@ -16,6 +16,7 @@ class Node {
   remove() { this.parent.children = this.parent.children.filter(node => node !== this); }
   async fire(event) { for (const handler of this.listeners[event] || []) await handler({preventDefault() {}}); }
   click() { return this.disabled ? Promise.resolve() : this.fire('click'); }
+  focus() { document.activeElement = this; }
 }
 const body = new Node('body');
 globalThis.document = {createElement: tag => new Node(tag), body};
@@ -51,10 +52,11 @@ async function open(options = {}) {
 }
 async function close(test) { confirmDiscard = true; await button(test.dialog, '×').click(); await test.done; }
 let test = await open();
+assert.equal(document.activeElement?.tag, 'input', 'Opening the dialog focuses its first field.');
 let sourceChoice = field(test.dialog, 'reuse-source');
 assert.deepEqual(sourceChoice.children.map(node => node.value), ['', 'source'], 'Destination cannot import from itself.');
 sourceChoice.value = 'source'; await sourceChoice.fire('change');
-assert.ok(test.dialog.querySelectorAll('p').some(node => node.textContent === 'Behavior: <b>Keep raw text</b>'), 'Preview preserves wording as text.');
+assert.ok(test.dialog.querySelectorAll('p').some(node => node.textContent === 'Requirement: <b>Keep raw text</b>'), 'Preview preserves wording as text.');
 assert.ok(test.dialog.querySelectorAll('p').some(node => node.textContent === 'Use case: A member keeps a draft. (reference: UC-01)'), 'Source preview names the use case.');
 const selection = test.dialog.querySelectorAll('input').find(node => node.value === 'R-005');
 selection.checked = true;

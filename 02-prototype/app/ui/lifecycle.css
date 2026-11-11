@@ -1,0 +1,88 @@
+/* Approval lifecycle, history, recovery, export and accessibility helpers. */
+.action-group {
+  margin-top:14px
+}
+
+.action-group h3 {
+  font-size:12px;
+  font-weight:700;
+  margin-bottom:4px
+}
+
+.action-group .action-warnings {
+  font-size:12px;
+  line-height:1.6;
+  margin:0
+}
+
+.action-blockers h3,
+.action-blockers .action-warnings {
+  color:var(--red)
+}
+
+#confirm-action:disabled {
+  cursor:not-allowed;
+  opacity:.55
+}
+
+#leave-dialog .dialog-actions,
+#recover-dialog .dialog-actions {
+  flex-wrap:wrap
+}
+
+button.export-choice {
+  font:inherit;
+  cursor:pointer
+}
+
+button.export-choice:disabled {
+  cursor:not-allowed;
+  opacity:.55
+}
+
+.undo-toast {
+  position:fixed;
+  left:50%;
+  bottom:24px;
+  z-index:50;
+  transform:translateX(-50%);
+  display:flex;
+  align-items:center;
+  gap:14px;
+  max-width:min(560px, calc(100vw - 32px));
+  padding:10px 12px 10px 16px;
+  border-radius:8px;
+  background:var(--ink);
+  color:var(--paper);
+  box-shadow:var(--shadow);
+  font-size:13px
+}
+
+.undo-toast[hidden] {
+  display:none
+}
+
+.undo-toast .button {
+  flex:none
+}
+
+.prd-comment-start[hidden] {
+  display:none
+}
+
+.completion-saved {
+  margin:10px 0 0;
+  font-size:12px;
+  font-weight:600;
+  color:var(--green)
+}
+
+.completion-saved[hidden] {
+  display:none
+}
+
+@media print {
+  .undo-toast {
+    display:none
+  }
+}

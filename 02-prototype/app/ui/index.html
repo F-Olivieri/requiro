@@ -6,25 +6,29 @@
   <meta name="color-scheme" content="dark light">
   <title>Requiro PRD workspace</title>
   <link rel="icon" type="image/svg+xml" href="/logo.svg">
+  <script src="/boot.js"></script>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/prd-views.css">
   <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/handoff.css">
+  <link rel="stylesheet" href="/lifecycle.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#workspace">Skip to workspace</a>
+  <div id="privacy-banner" class="privacy-banner" role="group" aria-label="Data-use confirmation">
+    <label title="I will use only synthetic or approved nonconfidential material, with no real employer, customer, personal, or account information."><input id="privacy-consent" type="checkbox"><strong>Data-use confirmation</strong><span>I will use only synthetic or approved nonconfidential material, with no real employer, customer, personal, or account information.</span></label>
+  </div>
   <div class="app-shell">
     <aside id="library-panel" class="library" aria-label="PRD library">
-      <a class="brand" href="/" aria-label="Requiro home"><img class="brand-mark" src="/logo.svg" alt="" width="32" height="32"><span>requiro<span class="brand-dot">.</span></span></a>
-      <p class="brand-caption">Your thinking. A clearer PRD.</p>
-      <button id="new-prd" class="button primary full"><span aria-hidden="true">＋</span> New PRD</button>
+      <div class="library-top"><a class="brand" href="/" aria-label="Requiro home"><img class="brand-mark" src="/logo.svg" alt="" width="24" height="24"><span>requiro<span class="brand-dot">.</span></span></a><button id="new-prd" class="button primary"><span aria-hidden="true">＋</span> New PRD</button></div>
       <div class="library-heading"><h2>Your library</h2><span id="doc-count" class="count">0</span></div>
       <label class="sr-only" for="search">Search PRDs</label>
       <input id="search" class="search" type="search" placeholder="Search PRDs…" autocomplete="off">
-      <label class="sr-only" for="status-filter">Filter by status</label>
-      <select id="status-filter" class="status-filter"><option value="">All statuses</option><option>Draft</option><option>In review</option><option>Approved</option><option>Archived</option></select>
+      <div class="library-filters"><label class="sr-only" for="status-filter">Filter by status</label>
+      <select id="status-filter" class="status-filter"><option value="">All statuses</option><option>Draft</option><option value="In review">Awaiting approval</option><option>Approved</option><option>Archived</option></select>
       <label class="sr-only" for="project-filter">Filter by project</label>
-      <select id="project-filter" class="status-filter"><option value="">All projects</option></select>
+      <select id="project-filter" class="status-filter"><option value="">All projects</option></select></div>
       <button id="manage-projects" class="text-button">Manage projects</button>
       <nav id="doc-list" class="doc-list" aria-label="PRDs"><p class="muted small">Loading your local library…</p></nav>
       <div class="library-footer">
@@ -37,36 +41,46 @@
     <main id="workspace" class="workspace" tabindex="-1">
       <header class="topbar">
         <button id="toggle-library" class="panel-toggle panel-toggle-library" aria-label="Hide library" title="Hide library" aria-controls="library-panel" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
-        <span class="eyebrow">PRODUCT WORKSPACE</span><span class="topbar-note">From an open question to a clear requirement</span>
+        <div class="document-bar">
+          <label class="sr-only" for="document-title">PRD title</label><textarea id="document-title" class="document-title" placeholder="Untitled PRD" maxlength="200" rows="1" spellcheck="true"></textarea><span class="title-more" aria-hidden="true">…</span>
+          <div class="document-controls">
+          <div class="document-state"><span id="document-status" class="status-pill">Draft</span><button id="lifecycle-action" class="button small" type="button" hidden></button><span class="document-meta"><span id="save-state">All changes saved</span><span id="document-revision" class="document-revision"></span><span id="updated-at"></span></span></div>
+          <div class="document-actions">
+            <button id="save-prd" class="button primary">Save</button><button id="comments-prd" class="button wide-only">Comments</button><button id="verify-delivery" class="button wide-only">Delivery review</button>
+            <div class="more-menu">
+              <button id="more-actions" class="button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu">More <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
+              <div id="more-menu" class="menu" role="menu" aria-labelledby="more-actions" hidden>
+                <button class="menu-item narrow-only" type="button" role="menuitem" data-proxy="comments-prd">Comments</button>
+                <button class="menu-item narrow-only" type="button" role="menuitem" data-proxy="verify-delivery">Delivery review</button>
+                <button id="connections-prd" class="menu-item" type="button" role="menuitem">Projects & reuse</button>
+                <button id="history-prd" class="menu-item" type="button" role="menuitem">History</button>
+                <button id="export-prd" class="menu-item" type="button" role="menuitem">Export ↓</button>
+                <button id="archive-prd" class="menu-item" type="button" role="menuitem">Archive</button>
+              </div>
+            </div>
+          </div>
+          <nav id="stage-nav" class="stage-nav" aria-label="PRD stages"></nav><div id="view-switcher" class="segmented" role="group" aria-label="PRD view"><button id="edit-tab" aria-pressed="false" title="Guided edit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16Z"/><path d="m13 7 4 4"/></svg><span class="view-label">Guided edit</span></button><button id="document-tab" class="active" aria-pressed="true" title="Document"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7Z"/><path d="M10 12h5M10 16h5"/></svg><span class="view-label">Document</span></button><button id="table-tab" aria-pressed="false" title="Table"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4ZM4 10h16M4 15h16M10 5v14"/></svg><span class="view-label">Table</span></button></div>
+          </div>
+        </div>
         <div class="workspace-tools" role="group" aria-label="Workspace display">
-          <button id="toggle-theme" class="icon-button" aria-label="Switch to light theme" title="Switch to light theme"><svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10Z"/></svg></button>
+          <button id="privacy-indicator" class="icon-button privacy-indicator" type="button" aria-label="Data-use confirmation given. Select to withdraw it." title="Data-use confirmation given. Select to withdraw it." hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.4 3 8.3 7 10 4-1.7 7-5.6 7-10V6Z"/><path d="m9 12 2 2 4-4"/></svg></button>
           <button id="open-settings" class="icon-button" aria-label="Settings" title="Settings" aria-haspopup="dialog" aria-controls="settings-dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 3-.6 2.1-1.8 1L5.4 5.6l-2 3.4 1.6 1.6v2.1L3.4 14l2 3.4 2.2-.5 1.8 1L10 20h4l.6-2.1 1.8-1 2.2.5 2-3.4-1.6-1.3v-2.1L20.6 9l-2-3.4-2.2.5-1.8-1L14 3Z"/><circle cx="12" cy="11.5" r="3"/></svg></button>
         </div>
+        <div id="phone-view-slot" class="phone-view-slot"></div>
         <button id="toggle-chat" class="panel-toggle panel-toggle-chat" aria-label="Hide chat" title="Hide chat" aria-controls="chat-panel" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
       </header>
-      <div id="privacy-banner" class="privacy-banner">
-        <span class="privacy-icon" aria-hidden="true">◇</span>
-        <label><input id="privacy-consent" type="checkbox"> <span>I will use synthetic or approved nonconfidential material only, with no real employer, customer, personal, or account information.</span></label>
-      </div>
       <div id="global-message" class="message" role="status" aria-live="polite" hidden></div>
       <section id="welcome" class="welcome">
         <img class="welcome-symbol" src="/logo.svg" alt="" width="44" height="44">
         <span class="eyebrow">A PLACE TO THINK IT THROUGH</span>
         <h1>Create and manage<br>your PRDs.</h1>
         <p>Shape the problem, set the scope, and turn your ideas into requirements people can build and test.</p>
-        <button id="welcome-new" class="button primary">Create your first PRD <span aria-hidden="true">↗</span></button>
-        <div class="welcome-steps"><div><span>01</span><strong>Discover</strong><p>Who needs what, and why?</p></div><div><span>02</span><strong>Scope</strong><p>Decide what belongs.</p></div><div><span>03</span><strong>Requirements</strong><p>Make behavior testable.</p></div><div><span>04</span><strong>Review</strong><p>Check before approval.</p></div></div>
-        <p class="welcome-footnote">Start with an empty document, or explore the clearly labeled fictional example.</p>
+        <div class="welcome-actions"><button id="welcome-new" class="button primary">Create your first PRD <span aria-hidden="true">↗</span></button><button id="welcome-example" class="button" type="button">Explore the fictional example</button></div>
+        <div class="welcome-steps"><div><span>01</span><strong>Discover</strong><p>Who needs what, and why?</p></div><div><span>02</span><strong>Scope</strong><p>Decide what belongs.</p></div><div><span>03</span><strong>Requirements</strong><p>Make behavior testable.</p></div><div><span>04</span><strong>Approval</strong><p>Check, then approve.</p></div></div>
+        <p class="welcome-footnote">The fictional example is clearly labeled and contains no real data.</p>
       </section>
       <section id="document-view" class="document-view" hidden>
-        <header class="document-header">
-          <div class="document-kicker"><span id="document-status" class="status-pill">Draft</span><span id="document-revision" class="muted small"></span></div>
-          <label class="sr-only" for="document-title">PRD title</label><input id="document-title" class="document-title" placeholder="Untitled PRD" maxlength="200">
-          <div class="document-meta"><span id="save-state">All changes saved</span><span id="updated-at"></span></div>
-          <div class="document-actions"><button id="save-prd" class="button primary">Save changes</button><button id="connections-prd" class="button">Projects & reuse</button><button id="comments-prd" class="button">Comments</button><button id="history-prd" class="button">History</button><button id="verify-delivery" class="button">Verify delivery</button><button id="export-prd" class="button">Export ↓</button><button id="archive-prd" class="button quiet">Archive</button></div>
-        </header>
-        <nav id="stage-nav" class="stage-nav" aria-label="PRD stages"></nav>
-        <div class="editor-toolbar"><p id="stage-subtitle"></p><div class="segmented" role="group" aria-label="PRD view"><button id="edit-tab" aria-pressed="false">Guided edit</button><button id="document-tab" class="active" aria-pressed="true">Document</button><button id="table-tab" aria-pressed="false">Table</button></div></div>
+        <div id="editor-toolbar" class="editor-toolbar"><p id="stage-subtitle" class="stage-subtitle"></p></div>
         <div id="editor-content" class="editor-content"></div>
         <div id="preview-content" class="preview-content" hidden><p id="preview-note" class="field-hint"></p><p id="review-load-state" class="inline-error" role="status" hidden></p><div id="prd-visualization"></div></div>
         <footer id="stage-footer" class="stage-footer"><button id="previous-stage" class="button quiet">← Previous</button><span id="stage-counter" class="muted small"></span><button id="next-stage" class="button">Continue <span aria-hidden="true">→</span></button></footer>
@@ -74,34 +88,46 @@
     </main>
 
     <aside id="chat-panel" class="assistant" aria-labelledby="assistant-heading">
-      <header class="assistant-header"><img class="assistant-avatar" src="/logo.svg" alt="" width="32" height="32"><div><h2 id="assistant-heading">Think with Requiro</h2><p>Guided chat · manual handoff</p></div><span class="handoff-dot" title="Manual handoff" aria-hidden="true"></span></header>
+      <header class="assistant-header"><img class="assistant-avatar" src="/logo.svg" alt="" width="32" height="32"><div><h2 id="assistant-heading">Work with your assistant</h2><p>Your own AI chat · copy and paste</p></div><span class="handoff-dot" title="Manual handoff" aria-hidden="true"></span></header>
       <div class="assistant-body">
-        <div class="handoff-notice"><strong>You stay in control.</strong><p>Copy a context packet into your chat, then paste Requiro’s JSON response here. Review every proposed change before applying it.</p></div>
+        <details id="handoff-help" class="handoff-notice" open><summary>How this works</summary><p><strong>You stay in control.</strong> No model runs in this app. Choose Copy for assistant, paste the text into your own AI chat, then choose Paste assistant reply. You check every suggested change before it reaches the PRD.</p></details>
         <section class="starter-card" aria-label="A question to start"><span class="eyebrow">ONE QUESTION TO START</span><p id="starter-question">What problem do you want this product to solve, and for whom?</p><button id="use-starter" class="text-button">Use this question <span aria-hidden="true">↙</span></button></section>
-        <div id="conversation" class="conversation" aria-label="Conversation" aria-live="polite"><p class="conversation-empty">Create or open a PRD to begin. No model runs in this app.</p></div>
-        <section id="proposal" class="proposal" aria-label="Pending proposal" hidden></section>
+        <div class="conversation-tools"><h3 id="conversation-heading">Conversation</h3><button id="clear-chat" class="text-button" type="button" disabled>Clear conversation</button></div>
+        <div id="conversation" class="conversation" role="log" aria-labelledby="conversation-heading" aria-live="polite"><p class="conversation-empty">Create or open a PRD to begin. No model runs in this app.</p></div>
+        <section id="proposal" class="proposal" aria-label="Suggested changes" hidden></section>
       </div>
       <div class="assistant-compose">
         <label for="chat-message">What would you like to work on?</label><textarea id="chat-message" rows="3" placeholder="Describe your idea, ask a question, or request a review…"></textarea>
-        <button id="copy-packet" class="button primary full">Copy context packet <span aria-hidden="true">↗</span></button>
-        <button id="paste-response" class="button full">Paste Requiro’s response</button>
-        <p id="handoff-state" class="small muted">A saved PRD and privacy acknowledgement are required.</p>
+        <button id="copy-packet" class="button primary full">Copy for assistant <span aria-hidden="true">↗</span></button>
+        <button id="paste-response" class="button full">Paste assistant reply</button>
+        <div id="chat-status" class="chat-status" role="status" hidden></div>
+        <p id="handoff-state" class="small muted">Open a PRD and tick the data-use confirmation to start.</p>
       </div>
     </aside>
   </div>
+  <nav id="mobile-tabs" class="mobile-tabs" aria-label="Workspace sections">
+    <button type="button" data-panel="library" aria-controls="library-panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Library</button>
+    <button type="button" data-panel="prd" aria-controls="workspace"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg>PRD</button>
+    <button type="button" data-panel="chat" aria-controls="chat-panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10H10l-4 4v-4H5Z"/></svg>Chat</button>
+  </nav>
 
   <dialog id="settings-dialog" class="dialog compact-dialog settings-dialog" aria-labelledby="settings-title">
     <div class="dialog-heading"><h2 id="settings-title">Settings</h2><button class="icon-button" data-close aria-label="Close settings">×</button></div>
-    <section aria-labelledby="settings-appearance"><h3 id="settings-appearance">Appearance</h3><label for="settings-theme">Theme</label><select id="settings-theme"><option value="dark">Dark</option><option value="light">Light</option></select></section>
+    <section aria-labelledby="settings-appearance"><h3 id="settings-appearance">Appearance</h3><label for="settings-theme">Theme</label><select id="settings-theme" autofocus><option value="dark">Dark</option><option value="light">Light</option></select></section>
     <section aria-labelledby="settings-panels"><h3 id="settings-panels">Panels</h3><label class="settings-check"><input id="settings-library" type="checkbox" checked> Show PRD library</label><label class="settings-check"><input id="settings-chat" type="checkbox" checked> Show chat</label></section>
   </dialog>
-  <dialog id="new-dialog" class="dialog compact-dialog" aria-labelledby="new-dialog-title"><form id="new-form"><div class="dialog-heading"><h2 id="new-dialog-title">Start a new PRD</h2><button type="button" class="icon-button" data-close aria-label="Close">×</button></div><p class="muted">Start with the product or idea you want to explore.</p><label for="new-title">PRD title</label><input id="new-title" required maxlength="200" placeholder="For example, a shared reading list"><p id="new-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button" data-close>Cancel</button><button class="button primary" type="submit">Create PRD</button></div></form></dialog>
-  <dialog id="import-dialog" class="dialog" aria-labelledby="import-title"><div class="dialog-heading"><h2 id="import-title">Import a PRD</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p class="muted">Import a Requiro JSON export. This creates a separate draft and never overwrites an existing document.</p><label for="import-file">Choose a JSON file</label><input id="import-file" type="file" accept="application/json,.json"><label for="import-json">Or paste JSON</label><textarea id="import-json" rows="10" spellcheck="false" placeholder="Paste the full exported document here"></textarea><p id="import-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button class="button" data-close>Cancel</button><button id="confirm-import" class="button primary">Import as new draft</button></div></dialog>
-  <dialog id="response-dialog" class="dialog" aria-labelledby="response-title"><div class="dialog-heading"><h2 id="response-title">Bring Requiro’s response back</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p class="muted">Paste the complete JSON response from your chat. Nothing is applied until you review the proposal.</p><label for="response-json">Requiro response JSON</label><textarea id="response-json" rows="12" spellcheck="false" placeholder='{"reply":"…","proposal":{"documentId":"your-document-id","baseRevision":1,"changes":{"problem":"…"}}}'></textarea><p id="response-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button class="button" data-close>Cancel</button><button id="confirm-response" class="button primary">Review response</button></div></dialog>
-  <dialog id="packet-dialog" class="dialog" aria-labelledby="packet-title"><div class="dialog-heading"><h2 id="packet-title">Your context packet</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p id="packet-explanation" class="muted">Copy this text into your chat, then bring the JSON response back here.</p><label for="packet-text">Context packet</label><textarea id="packet-text" rows="14" readonly spellcheck="false"></textarea><div class="dialog-actions"><button class="button" data-close>Done</button><button id="select-packet" class="button primary">Select all text</button></div></dialog>
-  <dialog id="history-dialog" class="dialog wide-dialog" aria-labelledby="history-title"><div class="dialog-heading"><h2 id="history-title">Version history</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p class="muted">Saved revisions are preserved. Restoring creates a new draft.</p><div class="history-layout"><div id="history-list" class="history-list"></div><div id="history-detail" class="history-detail"><p class="muted">Select a revision to inspect it.</p></div></div><p id="history-error" class="inline-error" role="alert" hidden></p></dialog>
-  <dialog id="export-dialog" class="dialog compact-dialog" aria-labelledby="export-title"><div class="dialog-heading"><h2 id="export-title">Export your PRD</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p id="export-note" class="muted"></p><a id="export-markdown" class="button export-choice" download><strong>Markdown <span aria-hidden="true">↓</span></strong><span>Readable document for sharing or editing</span></a><a id="export-json" class="button export-choice" download><strong>Requiro JSON <span aria-hidden="true">↓</span></strong><span>Full document and conversation for reimport</span></a></dialog>
-  <dialog id="action-dialog" class="dialog compact-dialog" aria-labelledby="action-title"><div class="dialog-heading"><h2 id="action-title"></h2><button class="icon-button" data-close aria-label="Close">×</button></div><p id="action-description" class="muted"></p><ul id="action-warnings" class="action-warnings"></ul><p id="action-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button class="button" data-close>Cancel</button><button id="confirm-action" class="button primary"></button></div></dialog>
+  <dialog id="new-dialog" class="dialog compact-dialog" aria-labelledby="new-dialog-title"><form id="new-form"><div class="dialog-heading"><h2 id="new-dialog-title">Start a new PRD</h2><button type="button" class="icon-button" data-close aria-label="Close">×</button></div><p class="muted">Start with the product or idea you want to explore.</p><label for="new-title">PRD title</label><input id="new-title" required autofocus maxlength="200" placeholder="For example, a shared reading list"><p id="new-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button" data-close>Cancel</button><button class="button primary" type="submit">Create PRD</button></div></form></dialog>
+  <dialog id="import-dialog" class="dialog" aria-labelledby="import-title"><div class="dialog-heading"><h2 id="import-title">Import a PRD</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p class="muted">Import a Requiro JSON export. This creates a separate draft and never overwrites an existing document.</p><label for="import-file">Choose a JSON file</label><input id="import-file" type="file" accept="application/json,.json" autofocus><label for="import-json">Or paste JSON</label><textarea id="import-json" rows="10" spellcheck="false" placeholder="Paste the full exported document here"></textarea><p id="import-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button class="button" data-close>Cancel</button><button id="confirm-import" class="button primary">Import as new draft</button></div></dialog>
+  <dialog id="response-dialog" class="dialog" aria-labelledby="response-title"><div class="dialog-heading"><h2 id="response-title">Paste assistant reply</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p class="muted">Paste the assistant’s whole reply. Extra text and code fences are fine. The PRD does not change until you check and apply the suggestions.</p><label for="response-json">Assistant reply</label><textarea id="response-json" rows="12" spellcheck="false" autofocus placeholder="Paste the reply from your AI chat here"></textarea><div id="response-error" class="inline-error reply-problems" role="alert" hidden></div><div class="dialog-actions"><button id="copy-correction" class="button" type="button" hidden>Copy correction request</button><button class="button" data-close>Cancel</button><button id="confirm-response" class="button primary">Check reply</button></div></dialog>
+  <dialog id="packet-dialog" class="dialog" aria-labelledby="packet-title"><div class="dialog-heading"><h2 id="packet-title">Copy for assistant</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p id="packet-explanation" class="muted">Paste this text into your AI chat, then choose Paste assistant reply.</p><label for="packet-text">Text for your assistant</label><textarea id="packet-text" rows="14" readonly spellcheck="false" autofocus></textarea><div class="dialog-actions"><button class="button" data-close>Done</button><button id="select-packet" class="button primary">Select all text</button></div></dialog>
+  <dialog id="proposal-dialog" class="dialog proposal-dialog" aria-labelledby="proposal-title"><div class="dialog-heading"><h2 id="proposal-title">Check suggested changes</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p id="proposal-intro" class="muted"></p><div id="proposal-issues" class="proposal-issues" hidden></div><div id="proposal-review" class="proposal-review"></div><p id="proposal-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button id="dismiss-proposal" class="button quiet" type="button">Discard suggestions</button><button class="button" data-close>Decide later</button><button id="apply-proposal" class="button primary" type="button">Apply selected</button></div></dialog>
+  <dialog id="clear-chat-dialog" class="dialog compact-dialog" aria-labelledby="clear-chat-title"><div class="dialog-heading"><h2 id="clear-chat-title">Clear this conversation?</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p id="clear-chat-description" class="muted"></p><p id="clear-chat-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button class="button" data-close autofocus>Cancel</button><button id="confirm-clear-chat" class="button primary" type="button">Clear conversation</button></div></dialog>
+  <dialog id="history-dialog" class="dialog wide-dialog" aria-labelledby="history-title"><div class="dialog-heading"><h2 id="history-title">Version history</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p class="muted">Every saved version is kept. Restoring copies a version into a new draft.</p><div class="history-layout"><div id="history-list" class="history-list"></div><div id="history-detail" class="history-detail"><p class="muted">Select a version to inspect it.</p></div></div><p id="history-error" class="inline-error" role="alert" hidden></p></dialog>
+  <dialog id="export-dialog" class="dialog compact-dialog" aria-labelledby="export-title"><div class="dialog-heading"><h2 id="export-title">Export your PRD</h2><button class="icon-button" data-close aria-label="Close">×</button></div><p id="export-note" class="muted"></p><a id="export-markdown" class="button export-choice" download><strong>Markdown <span aria-hidden="true">↓</span></strong><span>Includes every section and requirement. Leaves out the conversation, comments, delivery reviews, project and reuse links, and version history.</span></a><a id="export-json" class="button export-choice" download><strong>Requiro JSON <span aria-hidden="true">↓</span></strong><span>Includes every section, requirement and the conversation. Importing it creates a new draft. Leaves out comments, delivery reviews and proof, project and reuse links, and version history.</span></a><button id="export-print" class="button export-choice" type="button"><strong>Print or save as PDF</strong><span>Includes every section and requirement, and marks unsaved edits. Leaves out the conversation, comments and delivery reviews.</span></button><button id="export-report" class="button export-choice" type="button"><strong>Delivery report with proofs <span aria-hidden="true">↓</span></strong><span>ZIP with the saved PRD, each requirement’s delivery status and proof, and the proof attachments.</span></button><p id="export-error" class="inline-error" role="alert" hidden></p></dialog>
+  <dialog id="action-dialog" class="dialog compact-dialog" aria-labelledby="action-title"><div class="dialog-heading"><h2 id="action-title"></h2><button class="icon-button" data-close aria-label="Close">×</button></div><p id="action-description" class="muted"></p><section id="action-blockers" class="action-group action-blockers" aria-labelledby="action-blockers-title" hidden><h3 id="action-blockers-title">Blocks approval</h3><ul id="action-blocker-list" class="action-warnings"></ul></section><section id="action-advice" class="action-group" aria-labelledby="action-advice-title" hidden><h3 id="action-advice-title">Advice</h3><ul id="action-warnings" class="action-warnings"></ul></section><p id="action-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button id="cancel-action" class="button" data-close>Cancel</button><button id="confirm-action" class="button primary"></button></div></dialog>
+  <dialog id="leave-dialog" class="dialog compact-dialog" aria-labelledby="leave-title" aria-describedby="leave-description"><div class="dialog-heading"><h2 id="leave-title">Save your edits first?</h2></div><p id="leave-description" class="muted">This PRD has unsaved edits. Save them, discard them, or stay here.</p><p id="leave-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button id="leave-cancel" class="button" type="button">Cancel</button><button id="leave-discard" class="button" type="button">Discard</button><button id="leave-save" class="button primary" type="button">Save and continue</button></div></dialog>
+  <dialog id="recover-dialog" class="dialog compact-dialog" aria-labelledby="recover-title" aria-describedby="recover-description"><div class="dialog-heading"><h2 id="recover-title">Recover unsaved edits?</h2></div><p id="recover-description" class="muted"></p><div class="dialog-actions"><button id="recover-later" class="button quiet" type="button">Decide later</button><button id="recover-discard" class="button" type="button">Discard</button><button id="recover-confirm" class="button primary" type="button">Recover</button></div></dialog>
+  <div id="undo-toast" class="undo-toast" role="status" aria-live="polite" hidden><span id="undo-text"></span><button id="undo-remove" class="button small" type="button">Undo</button></div>
   <pre id="print-document" hidden></pre>
 </body>
 </html>

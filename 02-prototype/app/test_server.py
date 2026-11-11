@@ -74,6 +74,35 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.get(saved['id']), saved)
         self.assertEqual(self.store.history(saved['id']), history)
 
+    def test_chat_only_changes_keep_revision_status_and_history(self):
+        draft = self.ready()
+        review = self.store.mutate(draft['id'], draft['revision'], action='review')
+        approved = self.store.mutate(review['id'], review['revision'], action='approve')
+        history = self.store.history(approved['id'])
+        candidate = copy.deepcopy(approved)
+        candidate['chat'] = [{'role': 'user', 'content': 'Clarify the fictional list order.'}]
+        saved = self.save(candidate)
+        kept = lambda doc: (doc['revision'], doc['status'], doc['approvedRevision'], doc['updatedAt'])
+        self.assertEqual(kept(saved), kept(approved))
+        self.assertEqual(self.store.get(approved['id'])['chat'], candidate['chat'])
+        replied = self.store.update_chat(approved['id'], approved['revision'], [{'role': 'assistant', 'content': 'A fictional reply.'}])
+        self.assertEqual([item['role'] for item in replied['chat']], ['user', 'assistant'])
+        self.assertEqual(kept(replied), kept(approved))
+        cleared = self.store.update_chat(approved['id'], approved['revision'], clear=True)
+        self.assertEqual(cleared['chat'], [])
+        self.assertEqual(kept(self.store.get(approved['id'])), kept(approved))
+        self.assertEqual(self.store.history(approved['id']), history)
+        self.assert_rejected(409, lambda: self.store.update_chat(approved['id'], approved['revision'] - 1, clear=True))
+        self.assert_rejected(422, lambda: self.store.update_chat(approved['id'], approved['revision'], [{'role': 'system', 'content': 'x'}]))
+        full = [{'role': 'user', 'content': 'Fictional question.'}] * 100
+        self.assert_rejected(422, lambda: self.store.update_chat(approved['id'], approved['revision'], full + full[:1]))
+        edited = copy.deepcopy(cleared)
+        edited['sections']['scope'] = 'Draft and shared fictional lists.'
+        edited = self.save(edited)
+        self.assertEqual((edited['revision'], edited['status']), (approved['revision'] + 1, 'Draft'))
+        archived = self.store.mutate(edited['id'], edited['revision'], action='archive')
+        self.assert_rejected(422, lambda: self.store.update_chat(archived['id'], archived['revision'], clear=True))
+
     def test_approval_is_exact_and_edit_preserves_prior_baseline(self):
         draft = self.ready()
         review = self.store.mutate(draft['id'], draft['revision'], action='review')
@@ -375,6 +404,17 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(payload)['revision'], doc['revision'] + 1)
 
+    def test_boot_script_is_served_before_first_paint(self):
+        status, headers, body = self.request(path='/boot.js')
+        self.assertEqual(status, 200)
+        self.assertTrue(headers['Content-Type'].startswith('text/javascript'))
+        self.assertIn(b'requiro-consent', body)
+        self.assertNotIn(b'import ', body)
+        _, _, page = self.request(path='/')
+        head = page.split(b'</head>')[0]
+        self.assertIn(b'<script src="/boot.js"></script>', head)
+        self.assertLess(head.index(b'/boot.js'), head.index(b'/style.css'))
+
     def test_static_path_traversal_cannot_read_source_or_data(self):
         for path in ('/server.py', '/requiro.sqlite3', '/juno.sqlite3', '/../server.py', '/%2e%2e/server.py',
                      '/..%2fserver.py', '/api/../server.py', '/app.js/../server.py'):
@@ -413,6 +453,46 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request('POST', path, json.dumps({
             'expectedRevision': 0, 'message': 'Review the draft.',
         }), {'Content-Type': 'application/json'})[0], 409)
+
+    def test_copy_for_assistant_then_save_keeps_reply_revision_and_approval(self):
+        store = self.http.store
+        doc = store.create('Fictional approved list', True)
+        doc['sections'].update(problem='Lists lose order.', users='List members.', outcomes='O-001: keep order.',
+                               useCases='U-001: a member reorders a list.', scope='Draft lists.', requirements=[requirement()])
+        doc = store.mutate(doc['id'], doc['revision'], candidate=doc)
+        doc = store.mutate(doc['id'], doc['revision'], action='review')
+        approved = store.mutate(doc['id'], doc['revision'], action='approve')
+        history = store.history(approved['id'])
+        json_headers = {'Content-Type': 'application/json'}
+        status, _, body = self.request('POST', f"/api/prds/{approved['id']}/packet", json.dumps({
+            'expectedRevision': approved['revision'], 'message': '  Check the fictional scope.  ',
+        }), json_headers)
+        self.assertEqual(status, 200)
+        result = json.loads(body)
+        self.assertIn(f'"revision": {approved["revision"]}', result['packet'])
+        self.assertEqual(result['doc']['chat'], [{'role': 'user', 'content': 'Check the fictional scope.'}])
+        status, _, body = self.request('PUT', f"/api/prds/{approved['id']}", json.dumps({
+            'expectedRevision': approved['revision'], 'doc': result['doc'],
+        }), json_headers)
+        self.assertEqual(status, 200)
+        saved = json.loads(body)
+        self.assertEqual((saved['revision'], saved['status']), (approved['revision'], 'Approved'),
+                         'A reply prepared for this revision must still match after saving.')
+        status, _, body = self.request('POST', f"/api/prds/{approved['id']}/chat", json.dumps({
+            'expectedRevision': approved['revision'], 'append': [{'role': 'assistant', 'content': 'A fictional reply.'}],
+        }), json_headers)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(json.loads(body)['chat']), 2)
+        status, _, body = self.request('POST', f"/api/prds/{approved['id']}/chat", json.dumps({
+            'expectedRevision': approved['revision'], 'clear': True,
+        }), json_headers)
+        self.assertEqual(status, 200)
+        current = store.get(approved['id'])
+        self.assertEqual((current['chat'], current['revision'], current['status']), ([], approved['revision'], 'Approved'))
+        self.assertEqual(store.history(approved['id']), history)
+        self.assertEqual(self.request('POST', f"/api/prds/{approved['id']}/chat", json.dumps({
+            'expectedRevision': approved['revision'], 'clear': 'yes',
+        }), json_headers)[0], 422)
 
 
 if __name__ == '__main__':

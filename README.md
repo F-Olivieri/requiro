@@ -44,36 +44,65 @@ not change billing settings or provide an always-running service.
 
 ## Create and maintain a PRD
 
-1. Create or open a PRD. Work through Discover, Scope, Requirements and Review.
+1. Create or open a PRD. Work through Discover, Scope, Requirements and Approval.
 2. Fill supported sections; leave missing information explicit. Each requirement
-   has a stable ID, priority, applicability, outcome and acceptance criteria.
-3. Ask a question in the guided chat pane and copy the context packet.
-4. Paste the packet into your assistant chat. Copy its JSON response back into
-   Requiro. Review the proposed replacements and apply only the changes you want.
-5. Save a revision. Review and approve through separate explicit actions.
-   Editing approved content creates a new draft while preserving the baseline.
-6. Inspect historical revisions, restore content as a new draft, archive or
-   reopen documents, and export the current PRD as Markdown or JSON.
+   has a stable ID, priority, use case, intended outcome, the requirement itself
+   and acceptance criteria.
+3. Write a question in the chat panel and choose **Copy for assistant**. This
+   saves your edits first, so the assistant sees the saved version (vN).
+4. Paste the text into your assistant chat. Copy the whole reply, choose
+   **Paste assistant reply** and then **Check reply**. Code fences and short
+   text around the reply are fine. Parts that cannot be used are listed with
+   reasons; **Copy correction request** gives you a message to send back to the
+   assistant. In **Check suggested changes**, compare the current and suggested
+   wording, tick the sections and requirements you want, and choose
+   **Apply selected**. Then save. Suggestions you have not decided on stay
+   after a page reload.
+5. Save a version (v1, v2 and so on). The button beside the status shows the
+   next step: **Send for approval** for a Draft, **Approve vN** while it is
+   **Awaiting approval**, and **Reopen** for an archived PRD. The approval
+   dialog lists what **Blocks approval** and what is only **Advice**; Approve
+   stays disabled until nothing blocks it. Approving creates the next version
+   with the same content and records it as approved. Editing approved content
+   creates a new draft while preserving the approved version.
+6. Open **History** to inspect saved versions. Each one says what happened:
+   Saved, Sent for approval, Approved, Restored, Archived or Reopened. Restore
+   a version as a new draft, archive or reopen documents, and export the PRD.
 
-The app does not generate AI responses itself or call a model API. Copying a
-packet is a deliberate user handoff to the chosen chat service. No document is
-sent automatically. The assistant's reply cannot approve a document or save it.
+### Protect unsaved work
+
+- **Ctrl+S** (or **Cmd+S** on a Mac) saves when no dialog is open.
+- Opening another PRD, creating or importing one with unsaved edits asks you to
+  **Save and continue**, **Discard** or **Cancel**.
+- Removing a requirement shows **Undo** until the next save.
+- While you type, this browser keeps a copy of unsaved edits. It is never sent
+  to the server. When you reopen the PRD, choose **Recover** or **Discard**. If
+  the PRD was saved elsewhere since, choose **Download edits** to compare
+  instead. Saving or discarding removes the browser copy.
+
+The app does not generate AI responses itself or call a model API. **Copy for
+assistant** is a deliberate user handoff to the chosen chat service. No document
+is sent automatically. The assistant's reply cannot approve a document or save
+it. Questions and pasted replies are kept in the conversation without creating a
+version or changing the PRD status, so asking about an approved PRD leaves it
+approved. **Clear conversation** removes the messages after a confirmation; the
+PRD content, version and status stay the same.
 
 ## Read the same PRD in two views
 
 Choose **Document** for the full PRD with headings and paragraphs. Choose
-**Table** to compare requirements, owners and review statuses. Open a row's
+**Table** to compare requirements, owners and delivery statuses. Open a row's
 details to read its acceptance criteria, proof and other metadata.
 
 Both views use the same PRD and requirement records. Switching views creates no
 copy, saves no revision and preserves unsaved edits. Choose **Edit** beside a
 text section to open its field in **Guided edit**. In Table view, first expand
-**Other PRD sections**. Acknowledge the material-use statement to enable editing,
+**Other PRD sections**. Tick the data-use confirmation to enable editing,
 then choose **Save changes** when ready. Archived PRDs must be reopened first.
-Click a **review status** or **Change** under Action to select
+Click a **delivery status** or **Change** under Action to select
 Complete, To discuss or Needs work. Add a reviewer and notes where needed, then
-choose **Save status**. **Open full review** opens the owners, proof and attachment
-editor. Both views use this same review flow.
+choose **Save status**. **Open delivery review** opens the owners, proof and
+attachment editor. Both views use this same flow.
 When there are unsaved edits, **Save + change** saves the draft before review.
 Saved proof needs a fresh verdict after the PRD changes.
 
@@ -82,7 +111,7 @@ list. Write one situation per line in **Scope → Use cases**. Choose
 **Write a description / several use cases** for a custom scope. Choosing and
 saving a description updates the shared requirement.
 
-Both views, source previews, print and completion reports show use-case
+Both views, source previews, print and delivery reports show use-case
 descriptions. Older codes remain as secondary references so existing comments
 keep their selected text. Copied requirements use their original source
 revision. A missing or conflicting definition is marked **Use case description
@@ -91,10 +120,11 @@ not rewrite the PRD, approval or proof.
 
 ## Discuss requirement wording
 
-Select words in a saved requirement's wording, acceptance criteria, use case or
-outcome, then choose **Comment on selected text**. In Table view, expand a row's
-details to select its full text. Enter an author label and a comment or suggested
-wording, then post it.
+Choose **Comment** on a saved requirement to discuss its whole wording; no
+selection is needed. To discuss a few words, select them in the requirement,
+acceptance criteria, use case or intended outcome, then choose **Comment on
+selected text**. In Table view, expand a row's details to select its full text.
+Enter an author label and a comment or suggested wording, then post it.
 
 Use a requirement's **Comments** button to reply, copy suggested wording, or
 resolve and reopen a discussion. The header's **Comments** button shows all
@@ -118,7 +148,8 @@ The sun or moon icon switches themes. The gear opens **Settings** for theme and
 panel visibility. These choices are remembered in this browser when storage is
 available. They preserve unsaved edits and do not change PRD data.
 
-Library titles are followed by badges for their saved status, revision and stage.
+Library titles are followed by badges for their saved status, version and stage.
+The status filter lists Draft, Awaiting approval, Approved and Archived.
 
 ## Projects and requirement reuse
 
@@ -144,7 +175,7 @@ local workspace; standalone JSON exports contain the document, not these links.
 
 ## Verify completed work
 
-Open a PRD and choose **Verify delivery**. For each requirement, add engineering
+Open a PRD and choose **Delivery review**. For each requirement, add engineering
 owners, explain the proof, and attach supporting files where useful. Then record
 the team's verdict, reviewer role and notes. Choose **Mark complete** when the
 team confirms the acceptance criteria are met. Complete requires an engineering
@@ -155,15 +186,18 @@ Owners, proof and a reviewer can be added later. The flag stays open until the
 team chooses another status and counts as pending in the view and report.
 **Needs work** records that the team found work still needed.
 
-A changed PRD version requires a fresh completion verdict. Earlier proof and review records
-remain available under **Previous reviews**. Completion review is separate from
-approval of the PRD's wording. It records the team's decision; Requiro does not run
-your tests or independently establish that the work is correct.
+A changed PRD version requires a fresh delivery verdict. Changing owners, proof
+or attachments turns Complete or Needs work into Needs recheck; To discuss stays
+until you change it. Earlier proof and review records remain available under
+**Previous reviews**. Delivery review is separate from approval of the PRD's
+wording. It records the team's decision; Requiro does not run your tests or
+independently establish that the work is correct.
 
-Choose **Download report with proofs** for a ZIP containing the readable report,
-the current PRD and the actual attachment files. Pending requirements and gaps
-remain visible in the report. Ordinary PRD JSON/Markdown exports contain the
-authoring document, not the completion records or proof files.
+Choose **Download delivery report with proofs**, or **Delivery report with
+proofs** under **Export**, for a ZIP containing the readable report, the saved
+PRD and the actual attachment files. Pending requirements and gaps remain
+visible in the report. Ordinary PRD JSON/Markdown exports contain the authoring
+document, not the delivery reviews or proof files.
 
 ## Storage and portability
 
@@ -175,16 +209,28 @@ records and proof files. If both database names exist, or SQLite recovery files
 remain, startup stops without replacing data. Let the old version finish
 recovery and close before retrying; do not delete recovery files.
 
-Keep this directory when restarting the server. Completion records are in the
+Keep this directory when restarting the server. Delivery reviews are in the
 same database, and original proof files are under `data/prds/attachments/`. Saved documents survive browser
-reloads. Markdown/JSON exports contain the selected document's current revision;
-they do not include the full history database. An imported JSON document becomes
+reloads. **Export** states what each format includes and leaves out:
+
+- **Markdown**: every section and requirement of the saved version. Leaves out
+  the conversation, comments, delivery reviews, project and reuse links, and
+  version history.
+- **Requiro JSON**: every section, requirement and the conversation. Leaves out
+  comments, delivery reviews and proof, project and reuse links, and version
+  history.
+- **Print or save as PDF**: every section and requirement, with unsaved edits
+  clearly marked as not saved or approved.
+- **Delivery report with proofs**: a ZIP of the saved PRD, each requirement's
+  delivery status and proof, and the proof attachments.
+
+An imported JSON document becomes
 a new isolated Draft with a new identity and no imported approval authority.
 Export important current documents for portability. Archive is reversible;
 there is no permanent-delete action.
 
 The local application record is authoritative. Downloaded files and assistant
-responses are copies or proposals. A second tab with an old revision cannot
+replies are copies or suggestions. A second tab with an old revision cannot
 silently overwrite a newer save. Browser sessions using the same running app
 share comments. Remote team access, cloud synchronization and external
 integrations are not configured.
@@ -269,6 +315,8 @@ node test_requirement_status.mjs
 node test_connections.mjs
 node test_comments.mjs
 node test_use_cases.mjs
+node test_lifecycle.mjs
+node test_format.mjs
 ```
 
 Behavioral evaluations are fictional and bounded. They do not establish time

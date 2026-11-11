@@ -13,17 +13,17 @@ export async function openRequirementStatus({doc, requirementId, api, consent}) 
   if (!requirement) throw new Error('This requirement is not in the current PRD. Reopen the saved document.');
   const base = `/api/prds/${encodeURIComponent(doc.id)}/verification`;
   const data = await api(base);
-  if (data.documentId !== doc.id || data.prdRevision !== doc.revision) throw new Error('This PRD changed. Reopen its saved revision before changing review status.');
+  if (data.documentId !== doc.id || data.prdRevision !== doc.revision) throw new Error('This PRD changed. Reopen it before changing a delivery status.');
   const item = Array.isArray(data.items) && data.items.find(value => value.requirementId === requirementId);
   if (!item) throw new Error('The requirement review is unavailable. Reopen the saved document.');
   const currentStatus = label(item.status);
   const dialog = el('dialog', 'dialog compact-dialog requirement-status-dialog');
   dialog.setAttribute('aria-labelledby', 'requirement-status-title');
   const heading = el('div', 'dialog-heading');
-  const title = el('h2', '', 'Change review status'); title.id = 'requirement-status-title';
+  const title = el('h2', '', 'Change delivery status'); title.id = 'requirement-status-title';
   const close = el('button', 'icon-button', '×'); close.setAttribute('aria-label', 'Close status chooser');
   heading.append(title, close);
-  dialog.append(heading, el('p', 'muted', `${requirementId} · ${requirement.behavior || 'Requirement wording not documented'}`), el('p', 'small muted', `Current status: ${currentStatus} · saved PRD revision ${doc.revision}`));
+  dialog.append(heading, el('p', 'muted', `${requirementId} · ${requirement.behavior || 'Requirement wording not documented'}`), el('p', 'small muted', `Current status: ${currentStatus} · saved PRD v${doc.revision}`));
   function field(name, id, tag, value, limit) {
     const caption = el('label', '', name); caption.htmlFor = id;
     const input = el(tag); input.id = id; input.value = value || '';
@@ -31,7 +31,7 @@ export async function openRequirementStatus({doc, requirementId, api, consent}) 
     dialog.append(caption, input);
     return input;
   }
-  const status = field('Review status', 'requirement-status-choice', 'select', '');
+  const status = field('Delivery status', 'requirement-status-choice', 'select', '');
   const placeholder = el('option', '', 'Choose a status'); placeholder.value = ''; placeholder.disabled = true;
   status.append(placeholder);
   for (const value of statuses) { const option = el('option', '', value); option.value = value; status.append(option); }
@@ -42,7 +42,7 @@ export async function openRequirementStatus({doc, requirementId, api, consent}) 
   const missing = el('p', 'completion-warning');
   const notice = el('p', 'inline-error'); notice.hidden = true; notice.setAttribute('role', 'alert');
   const actions = el('div', 'dialog-actions');
-  const full = el('button', 'button', 'Open full review');
+  const full = el('button', 'button', 'Open delivery review');
   const save = el('button', 'button primary', 'Save status');
   actions.append(full, save);
   dialog.append(hint, missing, notice, actions);
@@ -58,7 +58,7 @@ export async function openRequirementStatus({doc, requirementId, api, consent}) 
   const closeChooser = () => { if (!busy && allowDiscard()) dialog.close(); };
   function controls() {
     const gaps = [];
-    if (!documented(requirement.behavior)) gaps.push('requirement behavior');
+    if (!documented(requirement.behavior)) gaps.push('requirement');
     if (!documented(requirement.acceptance)) gaps.push('acceptance criteria');
     if (!Array.isArray(item.owners) || !item.owners.length || item.owners.some(owner => !documented(owner))) gaps.push('engineering owner');
     if (!documented(item.proof)) gaps.push('proof explanation');
@@ -69,9 +69,9 @@ export async function openRequirementStatus({doc, requirementId, api, consent}) 
     close.disabled = busy;
     full.disabled = busy || stale;
     save.disabled = !canEdit || !statuses.includes(status.value) || status.value === 'Complete' && gaps.length > 0 || status.value === 'Needs work' && !documented(reviewer.value);
-    missing.textContent = `To mark Complete, add: ${gaps.join(', ')}. Use Open full review to add owners or proof.`;
+    missing.textContent = `To mark Complete, add: ${gaps.join(', ')}. Use Open delivery review to add owners or proof.`;
     missing.hidden = status.value !== 'Complete' || !gaps.length;
-    hint.textContent = !consent() ? 'Acknowledge the material-use statement before changing a status.' : 'Complete and Needs work require a reviewer role. To discuss can be saved before proof or a reviewer is recorded.';
+    hint.textContent = !consent() ? 'Tick the data-use confirmation before changing a status.' : 'Complete and Needs work require a reviewer role. To discuss can be saved before proof or a reviewer is recorded.';
   }
   for (const input of [status, reviewer, notes]) input.addEventListener(input === status ? 'change' : 'input', controls);
   save.addEventListener('click', async () => {
@@ -80,7 +80,7 @@ export async function openRequirementStatus({doc, requirementId, api, consent}) 
     try {
       const updated = await api(`${base}/${encodeURIComponent(requirementId)}/review`, 'POST', {expectedPrdRevision: doc.revision, expectedRevision: item.revision, status: status.value, reviewer: reviewer.value.trim(), notes: notes.value});
       if (updated?.requirementId !== requirementId) { stale = true; throw new Error('The server returned a review for another requirement. Copy your notes, then close and reopen the review.'); }
-      result = {updated: true}; dialog.close();
+      result = {updated: true, status: label(updated.status || status.value)}; dialog.close();
     } catch (error) {
       stale = stale || error.status === 409;
       notice.textContent = error.status === 409 ? 'The PRD or review changed elsewhere. Your unsaved choices and notes are preserved. Copy your notes before closing, then reopen the current saved PRD.' : error.message;
@@ -93,6 +93,6 @@ export async function openRequirementStatus({doc, requirementId, api, consent}) 
   const beforeUnload = event => { if (dirty() || busy) { event.preventDefault(); event.returnValue = ''; } };
   window.addEventListener('beforeunload', beforeUnload);
   dialog.addEventListener('close', () => { window.removeEventListener('beforeunload', beforeUnload); dialog.remove(); finish(result); }, {once: true});
-  controls(); dialog.showModal();
+  controls(); dialog.showModal(); (status.disabled ? reviewer : status).focus();
   return closed;
 }

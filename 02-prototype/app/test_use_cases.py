@@ -34,7 +34,7 @@ class UseCaseTests(unittest.TestCase):
         self.assertEqual(context['labels']['R-001']['label'], 'A member borrows a tool.')
         self.assertIn('Use case: A member borrows a tool. (reference: UC-01)', markdown(doc, context))
         with zipfile.ZipFile(io.BytesIO(verification.report(doc['id']))) as bundle:
-            for name in ('prd.md', 'completion-report.md'):
+            for name in ('prd.md', 'delivery-review.md'):
                 self.assertIn('Use case: A member borrows a tool. (reference: UC-01)', bundle.read(name).decode())
         self.assertEqual(store_fingerprint(self.store.directory), before)
         self.assertEqual(self.store.get(doc['id']), doc)

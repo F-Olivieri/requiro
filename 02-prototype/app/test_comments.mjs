@@ -83,8 +83,9 @@ for (const mode of ['document', 'table']) {
     const node = marked(field); const result = selectedRequirementAnchor(container, selection(node, 0, node.textContent.length));
     assert.equal(result.anchor.field, field); assert.equal(result.anchor.quote, doc.sections.requirements[0][field]);
   }
-  await container.querySelectorAll('button').find(node => node.getAttribute('aria-label') === 'Comments for R-002').click();
-  assert.deepEqual(commentTarget, {requirementId: 'R-002'});
+  await container.querySelectorAll('button').find(node => node.getAttribute('aria-label') === 'Comment on R-002 wording').click();
+  assert.equal(commentTarget.requirementId, 'R-002');
+  assert.equal(commentTarget.anchor.quote, doc.sections.requirements[1][commentTarget.anchor.field], 'The single Comment control anchors to the whole saved wording.');
 }
 assert.equal(documentEvents.get('selectionchange').size, 1, 'Rerendering removes the earlier selection listener.');
 
@@ -131,6 +132,7 @@ async function set(input, value) { input.value = value; await input.fire('input'
 async function close(test) { discard = true; await button(test.dialog, '×').click(); await test.done; }
 let test = await open({requirementId: 'R-001', anchor});
 const author = find(test.dialog, 'comments-author'); const comment = find(test.dialog, 'comments-text'); const suggestion = find(test.dialog, 'comments-suggestion');
+assert.equal(dom.activeElement, author, 'Opening comments focuses the first field.');
 await set(author, 'Application engineer'); await set(suggestion, 'Fictional suggested wording only.');
 assert.equal(button(test.dialog, 'Post comment').disabled, false, 'Suggested wording alone is a valid message.');
 await button(test.dialog, 'Post comment').click();
@@ -184,7 +186,15 @@ test = await open();
 assert.ok(test.dialog.textContent.includes('wording has changed'));
 await test.dialog.querySelectorAll('nav')[0].querySelectorAll('button').find(node => node.textContent.startsWith('R-002')).click();
 assert.ok(test.dialog.textContent.includes('requirement was removed'));
-assert.ok(test.dialog.textContent.includes('saved PRD revision 4'));
+assert.ok(test.dialog.textContent.includes('saved PRD v4'));
+await close(test);
+const whole = doc.sections.requirements[0].behavior;
+test = await open({requirementId: 'R-001', anchor: {field: 'behavior', start: 0, end: whole.length, quote: whole, sourceText: whole}});
+assert.ok(test.dialog.querySelectorAll('button').some(node => node.textContent === 'New comment on R-001'), 'A whole-field comment is named after its requirement, not a selection.');
+await close(test);
+test = await open({requirementId: 'R-001', anchor: {field: 'behavior', start: 0, end: whole.length, quote: whole, sourceText: whole}, browse: true});
+assert.ok(test.dialog.querySelectorAll('button').some(node => node.textContent === 'New comment on R-001'), 'Comments (N) still offers a new comment inside the list.');
+assert.ok(button(test.dialog, 'Post reply'), 'Comments (N) opens on the first existing discussion.');
 await close(test);
 test = await open({consent: () => false});
 assert.equal(find(test.dialog, 'comments-text').readOnly, true);

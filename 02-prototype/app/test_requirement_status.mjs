@@ -12,6 +12,7 @@ class Node {
   remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
   async fire(name) { for (const handler of this.listeners[name] || []) await handler({preventDefault() {}}); }
   click() { return this.fire('click'); }
+  focus() { document.activeElement = this; }
 }
 const body = new Node('body');
 globalThis.document = {createElement: tag => new Node(tag), body};
@@ -51,6 +52,7 @@ async function set(dialog, id, value) { const node = field(dialog, id); node.val
 async function cancel(test) { confirmDiscard = true; await button(test.dialog, '×').click(); assert.deepEqual(await test.done, {}); }
 
 let test = await open();
+assert.equal(document.activeElement, field(test.dialog, 'requirement-status-choice'), 'Opening the dialog focuses its first field.');
 assert.deepEqual(field(test.dialog, 'requirement-status-choice').children.map(option => option.value), ['', 'Complete', 'To discuss', 'Needs work']);
 assert.ok(test.dialog.querySelectorAll('p').some(node => node.textContent.includes('R-002 · Reopen a task.')));
 await set(test.dialog, 'requirement-status-choice', 'Complete');
@@ -62,7 +64,7 @@ await set(test.dialog, 'requirement-status-choice', 'To discuss');
 await set(test.dialog, 'requirement-status-notes', 'Should reopening also notify the task owner?');
 assert.equal(button(test.dialog, 'Save status').disabled, false, 'Discussion does not need proof or a reviewer.');
 await button(test.dialog, 'Save status').click();
-assert.deepEqual(await test.done, {updated: true});
+assert.deepEqual(await test.done, {updated: true, status: 'To discuss'}, 'The caller can confirm what was saved.');
 assert.equal(posts.at(-1).status, 'To discuss');
 assert.equal(posts.at(-1).notes, 'Should reopening also notify the task owner?');
 assert.equal(posts.at(-1).reviewer, '');
@@ -73,7 +75,7 @@ test = await open({owners: ['Application engineer'], proof: 'Simulated example p
 assert.equal(field(test.dialog, 'requirement-status-choice').value, 'Complete', 'Stored Verified uses the visible Complete label.');
 assert.equal(button(test.dialog, 'Save status').disabled, false);
 await button(test.dialog, 'Save status').click();
-assert.deepEqual(await test.done, {updated: true});
+assert.deepEqual(await test.done, {updated: true, status: 'Complete'});
 assert.equal(posts.at(-1).status, 'Complete');
 
 test = await open();
@@ -81,7 +83,7 @@ await set(test.dialog, 'requirement-status-choice', 'Needs work');
 await set(test.dialog, 'requirement-status-reviewer', 'Test engineer');
 assert.equal(button(test.dialog, 'Save status').disabled, false);
 await button(test.dialog, 'Save status').click();
-assert.deepEqual(await test.done, {updated: true});
+assert.deepEqual(await test.done, {updated: true, status: 'Needs work'});
 assert.equal(posts.at(-1).status, 'Needs work');
 
 test = await open();
@@ -99,12 +101,12 @@ assert.equal(field(test.dialog, 'requirement-status-notes').value, 'Unsaved ques
 assert.equal(field(test.dialog, 'requirement-status-notes').readOnly, true);
 assert.equal(field(test.dialog, 'requirement-status-notes').disabled, false, 'Conflicting notes remain selectable.');
 assert.equal(button(test.dialog, 'Save status').disabled, true);
-assert.equal(button(test.dialog, 'Open full review').disabled, true);
+assert.equal(button(test.dialog, 'Open delivery review').disabled, true);
 assert.ok(test.dialog.querySelectorAll('p').some(node => node.textContent.includes('changed elsewhere')));
 await cancel(test); conflict = false;
 
 test = await open();
-await button(test.dialog, 'Open full review').click();
+await button(test.dialog, 'Open delivery review').click();
 assert.deepEqual(await test.done, {fullReview: true});
 
 consent = false;

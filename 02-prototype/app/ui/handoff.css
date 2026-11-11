@@ -1,0 +1,75 @@
+/* Assistant handoff, proposal review and chat-panel feedback. */
+.message,.chat-status { position:relative; padding-right:44px }
+.message.success { border-color:#b9d9c5; background:#eef7f1; color:#22533a }
+.message-close { position:absolute; top:6px; right:6px; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:0; border-radius:6px; background:none; color:inherit; font-size:20px; line-height:1 }
+.message-close:hover { background:#0000000f }
+.message-action { margin:8px 0 0 10px; min-height:30px; padding:4px 12px; font-size:13px }
+.message[hidden],.chat-status[hidden] { display:none }
+
+.chat-status { margin-top:10px; padding:10px 44px 10px 12px; border:1px solid #ddd4f3; border-radius:8px; background:#f2edfc; color:var(--ink); font-size:13px; line-height:1.55; overflow-wrap:anywhere }
+.chat-status.error { border-color:#e9c7c5; background:#fff1ef; color:#86322c }
+.chat-status.success { border-color:#b9d9c5; background:#eef7f1; color:#22533a }
+.assistant-compose .chat-status .message-action { display:flex; width:auto; margin:8px 0 0; min-height:30px; font-size:13px }
+
+.conversation-tools { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px }
+.conversation-tools h3 { font-size:12px; font-weight:650; letter-spacing:.5px; text-transform:uppercase; color:var(--muted) }
+.conversation-tools .text-button { font-size:12px; padding:4px 0 }
+.conversation-tools .text-button:disabled:hover { text-decoration:none }
+.chat-content { font-size:13px }
+
+.proposal { margin:0 0 15px; padding:12px 14px }
+.proposal h3 { font-size:13px; color:#583e85; margin-bottom:4px }
+.proposal>p { font-size:12px; line-height:1.6; color:#4f4560; margin-bottom:10px }
+.proposal .button { width:100%; min-height:34px; font-size:13px }
+
+.proposal-dialog { max-width:1040px; max-height:92vh }
+.proposal-dialog>p { font-size:14px; line-height:1.6; margin-bottom:16px }
+.proposal-review { display:grid; gap:14px }
+.proposal-item { border:1px solid var(--line); border-radius:10px; padding:14px 16px; background:var(--card) }
+.proposal-dialog .proposal-choice { display:flex; align-items:center; gap:10px; margin:0 0 10px; font-size:15px; font-weight:650; color:var(--ink); cursor:pointer }
+.proposal-dialog .proposal-choice input { width:18px; height:18px; margin:0; flex:none }
+.proposal-kind { margin-left:auto; padding:2px 10px; border:1px solid var(--line); border-radius:999px; font-size:12px; font-weight:600; color:var(--muted); white-space:nowrap }
+.proposal-kind.new { border-color:#a9d3b9; background:#eef7f1; color:#22603f }
+.proposal-kind.changed { border-color:#e6cf9b; background:#fdf4e3; color:#6e4a00 }
+.proposal-kind.removed { border-color:#e9c7c5; background:#fff1ef; color:#86322c }
+.proposal-compare { display:grid; grid-template-columns:1fr 1fr; gap:12px }
+.proposal-text { padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:#f7f6f3 }
+.proposal-text.after { border-color:#d6c9f2; background:#f4f0fd }
+.proposal-text-label { display:block; margin-bottom:6px; font-size:12px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--muted) }
+.proposal-text p,.proposal-details dd { margin:0; font-size:14px; line-height:1.6; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere }
+.proposal-text p.proposal-empty { font-style:italic; color:var(--muted) }
+.proposal-field-label { margin:12px 0 6px; font-size:13px; font-weight:650; color:var(--ink) }
+.proposal-details { display:grid; grid-template-columns:minmax(120px,180px) 1fr; gap:6px 14px; margin:0 }
+.proposal-details dt { font-size:13px; font-weight:600; color:var(--muted) }
+.proposal-note { margin:0 0 8px; font-size:13px; color:var(--muted) }
+.proposal-issues { margin-bottom:16px; padding:12px 14px; border:1px solid #e9c7c5; border-radius:10px; background:#fff6f4; color:#5e2420 }
+.proposal-issues h3 { margin-bottom:6px; font-size:14px; color:#86322c }
+.proposal-issues ul,.reply-problems ul { margin:6px 0 10px 18px; font-size:13px; line-height:1.55 }
+.proposal-issues .button { min-height:32px; font-size:13px }
+.proposal-dialog .dialog-actions { position:sticky; bottom:-28px; margin:16px 0 -28px; padding:14px 0 28px; border-top:1px solid var(--line); background:var(--paper) }
+.dialog .reply-problems,#proposal-dialog .inline-error,#clear-chat-dialog .inline-error { font-size:13px }
+.reply-problems p { margin:0 }
+#clear-chat-dialog>p,#response-dialog>p,#packet-dialog>p { font-size:13px }
+
+@media(max-width:720px) {
+  .proposal-compare,.proposal-details { grid-template-columns:1fr }
+  .proposal-dialog { padding:20px }
+}
+
+@media screen {
+  :root[data-theme="dark"] .message.success,
+  :root[data-theme="dark"] .chat-status.success { background:#14281d; border-color:#355741; color:#a2dfb7 }
+  :root[data-theme="dark"] .chat-status { background:#201a2d; border-color:#493b61; color:#e4d8f5 }
+  :root[data-theme="dark"] .chat-status.error { background:#321c1c; border-color:#69413d; color:#ffaba5 }
+  :root[data-theme="dark"] .message-close:hover { background:#ffffff1a }
+  :root[data-theme="dark"] .proposal-item { background:var(--card); border-color:var(--line) }
+  :root[data-theme="dark"] .proposal-text { background:#191b22; border-color:var(--line) }
+  :root[data-theme="dark"] .proposal-text.after { background:#221c33; border-color:#493b61 }
+  :root[data-theme="dark"] .proposal-kind { border-color:#494254; color:#cfbfdc }
+  :root[data-theme="dark"] .proposal-kind.new { background:#14281d; border-color:#355741; color:#a2dfb7 }
+  :root[data-theme="dark"] .proposal-kind.changed { background:#302615; border-color:#69522c; color:#efcb8f }
+  :root[data-theme="dark"] .proposal-kind.removed { background:#321c1c; border-color:#69413d; color:#ffaba5 }
+  :root[data-theme="dark"] .proposal-issues { background:#2a1818; border-color:#69413d; color:#f3d0cc }
+  :root[data-theme="dark"] .proposal-issues h3 { color:#ffaba5 }
+  :root[data-theme="dark"] .proposal-dialog .dialog-actions { background:#111318 }
+}

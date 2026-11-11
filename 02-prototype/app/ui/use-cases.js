@@ -40,6 +40,12 @@ export function useCaseText(doc, req, context) {
   return info.label + (info.reference ? ` (reference: ${info.reference})` : '');
 }
 
+function describeChoice(hint, select, doc, req, context) {
+  const label = req.appliesTo ? useCaseInfo(doc, req, context).label : '';
+  if (select) select.title = label;
+  hint.textContent = !req.appliesTo ? 'Choose a use case, or write a description.' : label.includes('Use case description missing') ? `${label}. Choose a use case from the list, or write a description.` : '';
+  hint.hidden = !hint.textContent;
+}
 export function useCaseControl(doc, req, getContext, onChange) {
   const wrapper = document.createElement('div');
   const label = document.createElement('label'); label.textContent = 'Use case'; label.htmlFor = `${req.id}-appliesTo`;
@@ -63,7 +69,7 @@ export function useCaseControl(doc, req, getContext, onChange) {
   const hint = document.createElement('p'); hint.className = 'field-hint'; hint.id = `${select.id}-description`;
   hint.setAttribute('data-use-case-description', req.id);
   select.setAttribute('aria-describedby', hint.id);
-  const showDescription = () => { hint.textContent = req.appliesTo ? useCaseInfo(doc, req, getContext()).label : 'Choose a use case, or write a description.'; };
+  const showDescription = () => describeChoice(hint, select, doc, req, getContext());
   showDescription();
   select.addEventListener('change', () => {
     custom.hidden = customLabel.hidden = select.value !== 'custom';
@@ -92,6 +98,6 @@ export function refreshUseCaseControls(container, doc, context) {
   }
   for (const hint of container.querySelectorAll('[data-use-case-description]')) {
     const req = doc.sections.requirements.find(req => req.id === hint.getAttribute('data-use-case-description'));
-    if (req) hint.textContent = req.appliesTo ? useCaseInfo(doc, req, context).label : 'Choose a use case, or write a description.';
+    if (req) describeChoice(hint, container.querySelector?.(`#${hint.id.replace(/-description$/, '')}`), doc, req, context);
   }
 }

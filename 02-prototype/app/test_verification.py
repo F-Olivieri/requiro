@@ -103,12 +103,12 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(reopened, item)
         self.assert_rejected(409, lambda: self.review(0, status='To discuss', reviewer=''))
         with zipfile.ZipFile(io.BytesIO(self.verification.report(self.doc['id']))) as bundle:
-            report = bundle.read('completion-report.md').decode()
+            report = bundle.read('delivery-review.md').decode()
         self.assertIn('To discuss: 1', report)
         self.assertIn('Complete: 0', report)
         self.assertIn('## R-001 · To discuss', report)
         self.assertIn('Which draft state should the team keep?', report)
-        self.assertIn('Completion has gaps', report)
+        self.assertIn('Delivery review has gaps', report)
         self.assertNotIn('All current requirements have', report)
 
     def test_open_discussion_survives_prd_and_evidence_changes(self):
@@ -146,7 +146,7 @@ class VerificationTests(unittest.TestCase):
         self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
         verified = self.review(self.update()['revision'])
         with zipfile.ZipFile(io.BytesIO(self.verification.report(self.doc['id']))) as bundle:
-            self.assertIn('All current requirements have a recorded Complete team verdict.', bundle.read('completion-report.md').decode())
+            self.assertIn('Delivery review complete: all current requirements have a recorded Complete team verdict.', bundle.read('delivery-review.md').decode())
         for field, value, label in (('owners', [], 'engineering owner'), ('proof', '', 'proof explanation'),
                                     ('reviewer', '', 'reviewer role'), ('reviewedAt', None, 'review date')):
             for omitted in (False, True):
@@ -161,8 +161,8 @@ class VerificationTests(unittest.TestCase):
                                    (json.dumps(malformed), self.doc['id'], 'R-001'))
                     self.assertEqual(self.verification.get(self.doc['id'])['items'][0]['status'], 'Needs recheck')
                     with zipfile.ZipFile(io.BytesIO(self.verification.report(self.doc['id']))) as bundle:
-                        report = bundle.read('completion-report.md').decode()
-                    self.assertIn('Completion has gaps', report)
+                        report = bundle.read('delivery-review.md').decode()
+                    self.assertIn('Delivery review has gaps', report)
                     self.assertIn('Required information gaps: ' + label, report)
                     self.assertNotIn('All current requirements have a recorded Complete team verdict.', report)
 
@@ -188,31 +188,116 @@ class VerificationTests(unittest.TestCase):
     def test_changed_requirement_scope_and_restored_baseline_require_new_review(self):
         item = self.review(self.update()['revision'])
         original = copy.deepcopy(self.doc)
-        for field in ('behavior', 'acceptance', 'priority', 'appliesTo', 'outcome'):
+        for field in ('behavior', 'acceptance', 'appliesTo', 'outcome'):
             candidate = copy.deepcopy(self.doc)
-            candidate['sections']['requirements'][0][field] = 'Nice to have' if field == 'priority' else 'Changed fictional requirement.'
+            candidate['sections']['requirements'][0][field] = 'Changed fictional requirement.'
             self.doc = self.store.mutate(candidate['id'], candidate['revision'], candidate=candidate)
             stale = self.verification.get(self.doc['id'])['items'][0]
             self.assertEqual(stale['status'], 'Needs recheck')
+            self.assertTrue(stale['requirementChanged'])
             self.assertNotEqual(stale['requirementFingerprint'], item['requirementFingerprint'])
             item = self.review(stale['revision'])
-        for field in ('scope', 'useCases', 'inputsOutputs', 'nonGoals', 'quality'):
+        for field in ('scope', 'useCases', 'inputsOutputs', 'nonGoals', 'quality', 'problem', 'decisions'):
             self.doc['sections'][field] = 'Changed fictional context.'
             self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
-            stale = self.verification.get(self.doc['id'])['items'][0]
-            self.assertEqual(stale['status'], 'Needs recheck')
-            self.assertNotEqual(stale['requirementFingerprint'], item['requirementFingerprint'])
-            item = self.review(stale['revision'])
+            kept = self.verification.get(self.doc['id'])['items'][0]
+            self.assertEqual(kept['status'], 'Verified')
+            self.assertEqual(kept['requirementFingerprint'], item['requirementFingerprint'])
+        self.doc['sections']['requirements'][0]['priority'] = 'Nice to have'
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        self.assertEqual(self.verification.get(self.doc['id'])['items'][0]['status'], 'Verified')
         self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], action='restore', revision=original['revision'])
         self.assertEqual(self.verification.get(self.doc['id'])['items'][0]['status'], 'Needs recheck')
 
-    def test_unrelated_prd_edit_also_requires_exact_baseline_review(self):
+    def test_referenced_use_case_wording_change_requires_recheck(self):
+        self.doc['sections']['useCases'] = 'UC-01: A member edits a draft list.'
+        for requirement in self.doc['sections']['requirements']:
+            requirement['appliesTo'] = 'UC-01'
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        self.review(self.update()['revision'])
+        self.doc['sections']['useCases'] += '\nUC-02: A member shares a list.'
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        self.assertEqual(self.verification.get(self.doc['id'])['items'][0]['status'], 'Verified')
+        self.doc['sections']['useCases'] = 'UC-01: A member deletes a draft list.\nUC-02: A member shares a list.'
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        self.assertEqual(self.verification.get(self.doc['id'])['items'][0]['status'], 'Needs recheck')
+
+    def test_unrelated_prd_edit_keeps_unchanged_verdict(self):
         self.review(self.update()['revision'])
         self.doc['title'] = 'Fictional renamed list'
         self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
-        stale = self.verification.get(self.doc['id'])['items'][0]
-        self.assertEqual(stale['status'], 'Needs recheck')
-        self.assertEqual(self.review(stale['revision'])['status'], 'Verified')
+        kept = self.verification.get(self.doc['id'])['items'][0]
+        self.assertEqual(kept['status'], 'Verified')
+        self.assertFalse(kept['requirementChanged'])
+
+    def test_status_actions_chat_and_other_edits_keep_unchanged_verdicts(self):
+        for key in ('problem', 'users', 'outcomes', 'useCases', 'scope', 'nonGoals', 'inputsOutputs',
+                    'quality', 'metrics', 'risks', 'decisions', 'evidence'):
+            self.doc['sections'][key] = f'Fictional {key} text.'
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        complete = self.review(self.update()['revision'])
+        needs_work = self.verification.update(self.doc['id'], 'R-002', {
+            'expectedPrdRevision': self.doc['revision'], 'expectedRevision': 0, 'status': 'Needs work',
+            'reviewer': 'Test lead', 'notes': 'The second draft item is duplicated.'}, review=True)
+        statuses = lambda: [item['status'] for item in self.verification.get(self.doc['id'])['items']]
+        reviewed_at = self.doc['revision']
+        for action in ('review', 'approve', 'archive', 'reopen'):
+            with self.subTest(action=action):
+                self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], action=action)
+                self.assertEqual(statuses(), ['Verified', 'Needs work'])
+        self.assertEqual(self.doc['revision'], reviewed_at + 4)
+        self.doc['chat'] = [{'role': 'user', 'content': 'A fictional question about draft items.'}]
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        self.assertEqual(statuses(), ['Verified', 'Needs work'])
+        self.doc['title'] = 'Fictional renamed list'
+        self.doc['sections']['scope'] = 'Changed fictional scope.'
+        self.doc['sections']['requirements'].append({**self.doc['sections']['requirements'][0], 'id': 'R-003'})
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        self.assertEqual(statuses(), ['Verified', 'Needs work', 'Not reviewed'])
+        self.doc['sections']['requirements'][1]['behavior'] = 'A member can add one distinct draft item.'
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        self.assertEqual(statuses(), ['Verified', 'Needs recheck', 'Not reviewed'])
+        self.doc['sections']['requirements'][0]['acceptance'] = 'Draft item 1 appears once after a reload.'
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        self.assertEqual(statuses(), ['Needs recheck', 'Needs recheck', 'Not reviewed'])
+        self.assertEqual([entry['revision'] for entry in self.verification.history(self.doc['id'], 'R-001')],
+                         [complete['revision'], complete['revision'] - 1])
+        self.assertEqual(self.verification.history(self.doc['id'], 'R-002')[0], needs_work)
+        self.assertEqual(self.review(self.verification.get(self.doc['id'])['items'][0]['revision'])['status'], 'Verified')
+
+    def test_evidence_changes_after_status_actions_still_need_a_fresh_verdict(self):
+        item = self.review(self.update()['revision'])
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], action='archive')
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], action='reopen')
+        self.assertEqual(self.verification.get(self.doc['id'])['items'][0]['status'], 'Verified')
+        changed = self.update(item['revision'], proof='A repeat local test checked one draft item after reload.')
+        self.assertEqual(changed['status'], 'Needs recheck')
+        self.assertFalse(changed['requirementChanged'])
+        self.assertEqual(self.review(changed['revision'])['status'], 'Verified')
+        attached = self.verification.attach(self.doc['id'], 'R-001', self.doc['revision'], changed['revision'] + 1,
+                                            'proof.txt', b'SYNTHETIC')
+        self.assertEqual(attached['status'], 'Needs recheck')
+
+    def test_verdicts_saved_before_fingerprints_use_their_recorded_revision(self):
+        item = self.review(self.update()['revision'])
+        legacy = {key: value for key, value in item.items() if key not in ('verdictFingerprint', 'requirementChanged')}
+        legacy['requirementFingerprint'] = 'legacy-requirement-and-context-digest'
+        def store_legacy(record):
+            with self.store.connection() as db:
+                db.execute('UPDATE verification SET data=? WHERE document_id=? AND requirement_id=?',
+                           (json.dumps(record), self.doc['id'], 'R-001'))
+        store_legacy(legacy)
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], action='review')
+        self.doc['sections']['requirements'][1]['outcome'] = 'Changed fictional outcome.'
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        kept = self.verification.get(self.doc['id'])['items'][0]
+        self.assertEqual(kept['status'], 'Verified')
+        self.assertEqual(kept['verdictFingerprint'], kept['requirementFingerprint'])
+        self.doc['sections']['requirements'][0]['outcome'] = 'Changed fictional outcome.'
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        self.assertEqual(self.verification.get(self.doc['id'])['items'][0]['status'], 'Needs recheck')
+        store_legacy({**legacy, 'baselinePrdRevision': 999})
+        self.assertEqual(self.verification.get(self.doc['id'])['items'][0]['status'], 'Needs recheck')
 
     def test_attachments_keep_bytes_and_invalidate_verdict_without_touching_prd(self):
         item = self.review(self.update()['revision'])
@@ -264,11 +349,11 @@ class VerificationTests(unittest.TestCase):
             item = self.verification.attach(self.doc['id'], 'R-001', self.doc['revision'], item['revision'], 'proof [one] (local).txt', content)
         self.review(item['revision'])
         with zipfile.ZipFile(io.BytesIO(self.verification.report(self.doc['id']))) as bundle:
-            report = bundle.read('completion-report.md').decode()
+            report = bundle.read('delivery-review.md').decode()
             self.assertIn('Not reviewed: 1; To discuss: 0; Needs work: 0; Complete: 1; Needs recheck: 0', report)
             self.assertIn('## R-001 · Complete', report)
             self.assertNotIn('Verified', report)
-            self.assertIn('Completion has gaps', report)
+            self.assertIn('Delivery review has gaps', report)
             self.assertIn('explicit recorded team verdict', report)
             for requirement in self.doc['sections']['requirements']:
                 self.assertIn(requirement['behavior'], report)

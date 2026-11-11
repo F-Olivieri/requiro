@@ -1,4 +1,5 @@
 import {useCaseText} from './use-cases.js';
+import {formatDateTime} from './format.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -33,7 +34,7 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
   const notice = el('p', 'inline-error'); notice.hidden = true; notice.setAttribute('role', 'alert');
   dialog.append(heading);
   if (doc) dialog.append(el('p', 'muted', `${doc.title} · v${doc.revision}`));
-  const hint = el('p', 'field-hint', consent() ? 'Changes stay in this local workspace.' : 'Acknowledge the material-use statement before making changes.');
+  const hint = el('p', 'field-hint', consent() ? 'Changes stay in this local workspace.' : 'Tick the data-use confirmation before making changes.');
   dialog.append(hint, notice);
   function section(name) {
     const section = el('section', 'connections-section'); section.append(el('h3', '', name)); dialog.append(section); return section;
@@ -88,10 +89,10 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
     renderRelationships(importsSection, relationships.imports, true);
     renderRelationships(usedSection, relationships.usedBy, false);
     const importSection = section('Import requirements');
-    importSection.append(el('p', 'field-hint', hasUnsavedEdits ? 'Save your unsaved PRD edits, then reopen this panel to import requirements.' : doc.status === 'Archived' ? 'Reopen this archived PRD before importing.' : 'Choose a source PRD, review its saved requirements, then select the ones to copy. Copies keep their source links. Priorities need agreement again; reviews and proof are not copied.'));
+    importSection.append(el('p', 'field-hint', hasUnsavedEdits ? 'Save your unsaved PRD edits, then reopen this panel to import requirements.' : doc.status === 'Archived' ? 'Reopen this archived PRD before importing.' : 'Choose a source PRD and select the requirements to copy. Each copy links to its source. Copied priorities are marked “Priority not yet agreed”. Delivery reviews and proof are not copied.'));
     const sourceLabel = el('label', '', 'Source PRD'); sourceLabel.htmlFor = source.id;
     source.append(new Option('Choose a PRD…', ''));
-    for (const item of docs.filter(item => item.id !== doc.id)) source.append(new Option(item.title, item.id));
+    for (const item of docs.filter(item => item.id !== doc.id)) source.append(new Option(`${item.title} · v${item.revision}${item.updatedAt ? ` · updated ${formatDateTime(item.updatedAt)}` : ''}`, item.id));
     importSection.append(sourceLabel, source, choices, importButton);
     source.addEventListener('change', async () => {
       const request = ++loadingSource;
@@ -103,7 +104,7 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
         const context = await api(`${prdPath(loaded.id)}/use-cases?revision=${loaded.revision}`);
         if (request !== loadingSource || !dialog.open) return;
         sourceDoc = loaded;
-        choices.replaceChildren(el('p', 'small muted', `${loaded.title} · saved revision ${loaded.revision}`));
+        choices.replaceChildren(el('p', 'small muted', `${loaded.title} · saved v${loaded.revision}`));
         if (!loaded.sections.requirements.length) choices.append(el('p', 'muted', 'This PRD has no requirements.'));
         for (const req of loaded.sections.requirements) {
           const card = el('div', 'connection-card');
@@ -171,11 +172,12 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
     ++loadingSource; window.removeEventListener('beforeunload', beforeUnload); dialog.remove(); resolve(result);
   }, {once: true}));
   document.body.append(dialog); controls(); dialog.showModal();
+  (projectList.querySelector('input') || name).focus();
   return closed;
 }
 
 function requirementText(container, req, doc, context) {
-  for (const [label, value] of [['Behavior', req.behavior], ['Acceptance criteria', req.acceptance], ['Use case', useCaseText(doc, req, context)], ['Outcome', req.outcome]]) {
+  for (const [label, value] of [['Requirement', req.behavior], ['Acceptance criteria', req.acceptance], ['Use case', useCaseText(doc, req, context)], ['Intended outcome', req.outcome]]) {
     container.append(el('p', 'requirement-source-text', `${label}: ${value || 'Not documented'}`));
   }
 }

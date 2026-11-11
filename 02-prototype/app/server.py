@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import unicodedata
 
 from prd_store import InputError, MAX_BYTES, Store, markdown, text, offline_store_fingerprint, store_fingerprint as _store_fingerprint
 from verification import MAX_ATTACHMENT_BYTES, Verification
@@ -16,6 +17,10 @@ from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parent
 UI_ROOT = ROOT / 'ui'
+
+def export_name(doc):
+    slug = re.sub(r'[^a-z0-9]+', '-', unicodedata.normalize('NFKD', doc.get('title') or '').encode('ascii', 'ignore').decode().lower())
+    return slug[:80].strip('-') or doc['id']
 
 def packet(doc, message):
     message = text(message, 'Message', 10_000).strip()
@@ -58,7 +63,7 @@ class Handler(BaseHTTPRequestHandler):
         parts = path.strip('/').split('/')
         store = self.server.store
         if self.command == 'GET':
-            static = {'/logo.svg': ('logo.svg', 'image/svg+xml'), '/': ('index.html', 'text/html; charset=utf-8'), '/app.js': ('app.js', 'text/javascript; charset=utf-8'), '/completion.js': ('completion.js', 'text/javascript; charset=utf-8'), '/prd-views.js': ('prd-views.js', 'text/javascript; charset=utf-8'), '/workspace-controls.js': ('workspace-controls.js', 'text/javascript; charset=utf-8'), '/requirement-status.js': ('requirement-status.js', 'text/javascript; charset=utf-8'), '/style.css': ('style.css', 'text/css; charset=utf-8'), '/prd-views.css': ('prd-views.css', 'text/css; charset=utf-8'), '/theme.css': ('theme.css', 'text/css; charset=utf-8')}
+            static = {'/logo.svg': ('logo.svg', 'image/svg+xml'), '/': ('index.html', 'text/html; charset=utf-8'), '/app.js': ('app.js', 'text/javascript; charset=utf-8'), '/completion.js': ('completion.js', 'text/javascript; charset=utf-8'), '/prd-views.js': ('prd-views.js', 'text/javascript; charset=utf-8'), '/workspace-controls.js': ('workspace-controls.js', 'text/javascript; charset=utf-8'), '/requirement-status.js': ('requirement-status.js', 'text/javascript; charset=utf-8'), '/style.css': ('style.css', 'text/css; charset=utf-8'), '/prd-views.css': ('prd-views.css', 'text/css; charset=utf-8'), '/theme.css': ('theme.css', 'text/css; charset=utf-8'), '/handoff.css': ('handoff.css', 'text/css; charset=utf-8'), '/lifecycle.css': ('lifecycle.css', 'text/css; charset=utf-8'), '/format.js': ('format.js', 'text/javascript; charset=utf-8'), '/boot.js': ('boot.js', 'text/javascript; charset=utf-8')}
             if path in static:
                 name, mime = static[path]
                 return self.reply(200, (UI_ROOT / name).read_bytes(), mime)
@@ -75,7 +80,7 @@ class Handler(BaseHTTPRequestHandler):
                     raise InputError('The fictional example is unavailable.', 500) from exc
                 return self.reply(200, example)
             if path == '/api/state':
-                return self.reply(200, {'docs': store.summaries(), 'ai': {'available': False, 'mode': 'handoff', 'provider': None, 'detail': 'Prepare a context packet, use it in your assistant chat, then paste the JSON reply here for review.'}})
+                return self.reply(200, {'docs': store.summaries(), 'ai': {'available': False, 'mode': 'handoff', 'provider': None, 'detail': 'Choose Copy for assistant, paste the text into your AI chat, then choose Paste assistant reply and check its suggestions.'}})
             if path == '/api/projects':
                 return self.reply(200, store.projects())
             if parts[:2] == ['api', 'prds'] and len(parts) >= 3:
@@ -88,21 +93,21 @@ class Handler(BaseHTTPRequestHandler):
                 if len(parts) == 4 and parts[3] == 'use-cases':
                     revision = parse_qs(urlsplit(self.path).query).get('revision', [None])[0]
                     if revision is not None and (not revision.isascii() or not revision.isdigit() or len(revision) > 19):
-                        raise InputError('Choose a positive revision within the supported numeric range.')
+                        raise InputError('Choose a saved version number, such as 1 for v1.')
                     doc = store.get(parts[2], int(revision) if revision is not None else None)
                     return self.reply(200, store.use_case_context(doc))
                 if len(parts) == 4 and parts[3] == 'history':
                     return self.reply(200, store.history(parts[2]))
                 if len(parts) == 5 and parts[3] == 'history' and parts[4].isascii() and parts[4].isdigit():
                     if len(parts[4]) > 19:
-                        raise InputError('Choose a positive revision within the supported numeric range.')
+                        raise InputError('Choose a saved version number, such as 1 for v1.')
                     return self.reply(200, store.get(parts[2], int(parts[4])))
                 if len(parts) == 4 and parts[3] == 'verification':
                     return self.reply(200, self.server.verification.get(parts[2]))
                 if len(parts) == 4 and parts[3] == 'comments':
                     return self.reply(200, self.server.comments.get(parts[2]))
                 if len(parts) == 4 and parts[3] == 'completion-report':
-                    return self.reply(200, self.server.verification.report(parts[2]), 'application/zip', parts[2] + '-completion.zip')
+                    return self.reply(200, self.server.verification.report(parts[2]), 'application/zip', export_name(store.get(parts[2])) + '-delivery-review.zip')
                 if len(parts) == 6 and parts[3] == 'verification' and parts[5] == 'history':
                     return self.reply(200, self.server.verification.history(parts[2], parts[4]))
                 if len(parts) == 7 and parts[3] == 'verification' and parts[5] == 'attachments':
@@ -112,10 +117,10 @@ class Handler(BaseHTTPRequestHandler):
                 doc = store.get(parts[2])
                 fmt = parse_qs(urlsplit(self.path).query).get('format', ['json'])[0]
                 if fmt == 'markdown':
-                    return self.reply(200, markdown(doc, store.use_case_context(doc)).encode(), 'text/markdown; charset=utf-8', doc['id'] + '.md')
+                    return self.reply(200, markdown(doc, store.use_case_context(doc)).encode(), 'text/markdown; charset=utf-8', export_name(doc) + '.md')
                 if fmt != 'json':
                     raise InputError('Choose json or markdown export.')
-                return self.reply(200, doc, filename=doc['id'] + '.json')
+                return self.reply(200, doc, filename=export_name(doc) + '.json')
             raise InputError('Not found.', 404)
         if self.command == 'POST' and len(parts) == 6 and parts[:2] == ['api', 'prds'] and parts[3] == 'verification' and parts[5] == 'attachments':
             if self.headers.get('Content-Type', '').split(';')[0].strip() != 'application/octet-stream':
@@ -190,8 +195,14 @@ class Handler(BaseHTTPRequestHandler):
             if self.command == 'POST' and len(parts) == 4 and parts[3] == 'packet':
                 doc = store.get(document_id)
                 if type(expected) is not int or doc['revision'] != expected:
-                    raise InputError('Reload the current revision before preparing a packet.', 409)
-                return self.reply(200, {'packet': packet(doc, body.get('message'))})
+                    raise InputError('Reload the current revision before copying it for the assistant.', 409)
+                if len(doc['chat']) >= 99:
+                    raise InputError('This conversation is full. Choose Clear conversation to continue; the PRD content stays the same.')
+                value = packet(doc, body.get('message'))
+                saved = store.update_chat(document_id, expected, [{'role': 'user', 'content': body['message'].strip()}])
+                return self.reply(200, {'packet': value, 'doc': saved})
+            if self.command == 'POST' and len(parts) == 4 and parts[3] == 'chat':
+                return self.reply(200, store.update_chat(document_id, expected, body.get('append', []), body.get('clear', False)))
         raise InputError('Not found.', 404)
 
     def dispatch(self):

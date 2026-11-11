@@ -12,6 +12,7 @@ class Node {
   remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
   async fire(name) { for (const handler of this.listeners[name] || []) await handler({preventDefault() {}}); }
   click() { return this.fire('click'); }
+  focus() { document.activeElement = this; }
 }
 const body = new Node('body');
 globalThis.document = {createElement: tag => new Node(tag), body};
@@ -48,18 +49,24 @@ const field = id => all().find(node => node.id === id);
 const button = text => dialog.querySelectorAll('button').find(node => node.textContent === text);
 const type = async (id, value) => { field(id).value = value; await field(id).fire('input'); };
 assert.equal(dialog.open, true);
+assert.equal(document.activeElement, field('completion-owners'), 'Opening the delivery review focuses its first field.');
 assert.equal(button('Mark complete').disabled, true);
 assert.equal(button('To discuss').disabled, false, 'Discussion does not require owners, proof or reviewer.');
 await type('completion-notes', 'Which draft state should we keep?');
+const saved = dialog.querySelectorAll('p').find(node => node.className === 'completion-saved');
+assert.equal(saved.hidden, true);
 await button('To discuss').click();
 assert.equal(rows.get('R-001').status, 'To discuss');
 assert.equal(rows.get('R-001').reviewNotes, 'Which draft state should we keep?');
+assert.equal(saved.hidden, false); assert.equal(saved.textContent, 'R-001 marked To discuss.');
+assert.equal(saved.attributes.role, 'status', 'Screen readers hear the confirmation.');
 assert.ok(dialog.querySelectorAll('span').some(node => node.textContent === '1 to discuss'));
 assert.ok(dialog.querySelectorAll('p').some(node => node.textContent === '0 of 2 complete · 2 pending'));
 await type('completion-owners', 'Frontend engineer, Test engineer, Frontend engineer');
 await type('completion-proof', 'Acceptance passed in the local example.');
 assert.equal(field('completion-file').disabled, true, 'Unsaved evidence prevents upload.');
 await button('Save owners and proof').click();
+assert.equal(saved.textContent, 'Saved owners and proof for R-001.');
 assert.deepEqual(rows.get('R-001').owners, ['Frontend engineer', 'Test engineer']);
 assert.equal(rows.get('R-001').status, 'To discuss', 'Evidence keeps an open discussion pending.');
 await type('completion-reviewer', 'Test engineer');
@@ -67,6 +74,7 @@ await type('completion-notes', 'Team reviewed the proof.');
 assert.equal(button('Mark complete').disabled, false);
 await button('Mark complete').click();
 assert.equal(rows.get('R-001').status, 'Verified');
+assert.equal(saved.textContent, 'R-001 marked Complete.', 'The confirmation uses the display label.');
 assert.ok(dialog.querySelectorAll('span').some(node => node.textContent === 'Complete'), 'Stored Verified displays as Complete.');
 const history = dialog.querySelectorAll('details')[0]; history.open = true; await history.fire('toggle');
 assert.ok(dialog.querySelectorAll('p').some(node => node.textContent.startsWith('Complete · review record')), 'History uses the same label.');
@@ -104,7 +112,7 @@ for (const key of ['behavior', 'acceptance']) {
     await new Promise(resolve => setImmediate(resolve));
     const active = body.children[0];
     assert.equal(active.querySelectorAll('button').find(node => node.textContent === 'Mark complete').disabled, true, `${key}=${JSON.stringify(value)} must prevent completion.`);
-    assert.ok(active.querySelectorAll('p').some(node => node.textContent.includes(`To mark complete, add: ${key === 'behavior' ? 'requirement behavior' : 'acceptance criteria'}`)), 'Missing requirement content must be visible.');
+    assert.ok(active.querySelectorAll('p').some(node => node.textContent.includes(`To mark complete, add: ${key === 'behavior' ? 'requirement' : 'acceptance criteria'}`)), 'Missing requirement content must be visible.');
     await active.querySelectorAll('button').find(node => node.textContent === '×').click(); await review;
   }
 }

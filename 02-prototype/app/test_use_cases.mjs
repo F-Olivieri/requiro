@@ -44,12 +44,21 @@ assert.equal(edits, 0);
 const select = control.querySelectorAll('select')[0];
 const custom = control.querySelectorAll('textarea')[0];
 assert.equal(select.value, 'saved');
-assert.equal(control.querySelectorAll('[data-use-case-description]')[0].textContent, 'A member borrows a tool.', 'Full selected description stays readable below the native picker.');
+const description = control.querySelectorAll('[data-use-case-description]')[0];
+assert.equal(description.textContent, '', 'A chosen use case is not repeated below the picker.');
+assert.equal(description.hidden, true);
+assert.equal(select.title, 'A member borrows a tool.', 'The full description stays available on the picker.');
 assert.ok(select.children.some(option => option.textContent === 'A member borrows a tool.'));
 assert.ok(select.children.every(option => !/^UC-/.test(option.textContent)), 'Choices use descriptions, including the saved legacy reference.');
 refreshUseCaseControls(control, doc, imported);
 assert.equal(select.children.find(option => option.value === 'saved').textContent, 'Current: A participant signs up.');
-assert.equal(control.querySelectorAll('[data-use-case-description]')[0].textContent, 'A participant signs up.');
+assert.equal(description.hidden, true, 'Refreshing labels keeps the chosen use case out of the hint.');
+for (const [appliesTo, expected] of [['', 'Choose a use case, or write a description.'], ['UC-99', 'Use case description missing. Choose a use case from the list, or write a description.']]) {
+  const other = {id: 'R-002', appliesTo};
+  const hint = useCaseControl({...doc, sections: {...doc.sections, requirements: [req, other]}}, other, () => null, () => {}).querySelectorAll('[data-use-case-description]')[0];
+  assert.equal(hint.textContent, expected, 'Prompts and missing-description warnings stay visible.');
+  assert.equal(hint.hidden, false);
+}
 assert.equal(req.appliesTo, 'UC-01');
 select.value = 'case-1'; select.listeners.change();
 assert.equal(req.appliesTo, 'A member returns a tool.');

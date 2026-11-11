@@ -2,3 +2,4 @@ data/
 02-prototype/app/.juno-data/
 **/__pycache__/
 *.pyc
+.DS_Store

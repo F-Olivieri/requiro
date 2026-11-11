@@ -1,3 +1,5 @@
+import {formatDateTime} from './format.js';
+
 const statuses = ['Not reviewed', 'To discuss', 'Needs work', 'Needs recheck', 'Verified'];
 const statusLabel = status => status === 'Verified' ? 'Complete' : status;
 const statusClass = status => ({Verified: 'verified', 'To discuss': 'to-discuss', 'Needs work': 'needs-work', 'Needs recheck': 'needs-recheck'}[status] || 'not-reviewed');
@@ -13,16 +15,16 @@ const documentedText = text => !['', 'not documented', 'unknown', 'unresolved', 
 export async function openCompletion({doc, api, consent, requirementId}) {
   const base = `/api/prds/${encodeURIComponent(doc.id)}`;
   const data = await api(`${base}/verification`);
-  if (data.documentId !== doc.id || data.prdRevision !== doc.revision) throw new Error('This PRD changed. Reopen its saved revision before verifying delivery.');
+  if (data.documentId !== doc.id || data.prdRevision !== doc.revision) throw new Error('This PRD changed. Reopen it before opening Delivery review.');
   const rows = new Map(data.items.map(row => [row.requirementId, row]));
-  if (doc.sections.requirements.some(req => !rows.has(req.id))) throw new Error('Completion records are incomplete. Reopen the review to try again.');
+  if (doc.sections.requirements.some(req => !rows.has(req.id))) throw new Error('Delivery review records are incomplete. Open Delivery review again to retry.');
   const dialog = el('dialog', 'dialog completion-dialog');
   dialog.setAttribute('aria-labelledby', 'completion-title');
   const heading = el('div', 'dialog-heading');
-  const title = el('h2', '', 'Completion review'); title.id = 'completion-title';
-  const close = el('button', 'icon-button', '×'); close.setAttribute('aria-label', 'Close completion review');
+  const title = el('h2', '', 'Delivery review'); title.id = 'completion-title';
+  const close = el('button', 'icon-button', '×'); close.setAttribute('aria-label', 'Close delivery review');
   heading.append(title, close);
-  const identity = el('p', 'completion-identity', `${doc.title || 'Untitled PRD'} · saved revision ${doc.revision}`);
+  const identity = el('p', 'completion-identity', `${doc.title || 'Untitled PRD'} · saved v${doc.revision}`);
   const explanation = el('p', 'muted', 'Complete means the team confirms the acceptance criteria are met. To discuss flags an open question or decision and counts as pending. Requiro does not run your tests.');
   const summary = el('div', 'completion-summary');
   summary.setAttribute('aria-live', 'polite');
@@ -31,11 +33,12 @@ export async function openCompletion({doc, api, consent, requirementId}) {
   const detail = el('section', 'completion-detail'); detail.setAttribute('aria-label', 'Requirement evidence and team verdict');
   layout.append(list, detail);
   const notice = el('p', 'inline-error'); notice.hidden = true; notice.setAttribute('role', 'alert');
+  const done = el('p', 'completion-saved'); done.hidden = true; done.setAttribute('role', 'status');
   const footer = el('div', 'completion-footer');
-  const report = el('a', 'button', 'Download report with proofs');
+  const report = el('a', 'button', 'Download delivery report with proofs');
   report.href = `${base}/completion-report`; report.download = '';
   footer.append(el('p', 'muted small', 'ZIP: saved Markdown report and original proof attachments.'), report);
-  dialog.append(heading, identity, explanation, summary, layout, notice, footer);
+  dialog.append(heading, identity, explanation, summary, layout, notice, done, footer);
   document.body.append(dialog);
   let selected = doc.sections.requirements.find(req => req.id === requirementId)?.id ?? doc.sections.requirements[0]?.id;
   let inputs = null;
@@ -47,7 +50,9 @@ export async function openCompletion({doc, api, consent, requirementId}) {
   const evidenceDirty = () => Boolean(inputs && (JSON.stringify(ownersFrom(inputs.owners.value)) !== JSON.stringify(row().owners) || inputs.proof.value !== row().proof));
   const verdictDirty = () => Boolean(inputs && (inputs.reviewer.value !== row().reviewer || inputs.notes.value !== row().reviewNotes));
   const dirty = () => evidenceDirty() || verdictDirty();
-  const message = text => { notice.textContent = text; notice.hidden = !text; };
+  let doneTimer = null;
+  const message = text => { notice.textContent = text; notice.hidden = !text; done.hidden = true; clearTimeout(doneTimer); };
+  const confirmSaved = text => { done.textContent = text; done.hidden = false; clearTimeout(doneTimer); doneTimer = setTimeout(() => { done.hidden = true; }, 5000); };
   const allowDiscard = () => !dirty() || window.confirm('Discard unsaved owners, proof, or reviewer notes for this requirement? Saved reviews and attachments will remain.');
   const closeReview = () => { if (!busy && allowDiscard()) dialog.close(); };
   const endpoint = () => `${base}/verification/${encodeURIComponent(selected)}`;
@@ -70,14 +75,14 @@ export async function openCompletion({doc, api, consent, requirementId}) {
     inputs.needsWork.disabled = !canEdit || evidenceDirty() || !documentedText(inputs.reviewer.value);
     inputs.toDiscuss.disabled = !canEdit || evidenceDirty();
     const missing = [];
-    if (!documentedText(req.behavior)) missing.push('requirement behavior');
+    if (!documentedText(req.behavior)) missing.push('requirement');
     if (!documentedText(req.acceptance)) missing.push('acceptance criteria');
     if (!ownersFrom(inputs.owners.value).length) missing.push('engineering owner');
     if (!documentedText(inputs.proof.value)) missing.push('proof explanation');
     if (!documentedText(inputs.reviewer.value)) missing.push('reviewer role');
     inputs.missing.textContent = `To mark complete, add: ${missing.join(', ')}.`;
     inputs.missing.hidden = !missing.length;
-    inputs.saveHint.textContent = !consent() ? 'Close this review and acknowledge the material-use statement to edit or upload.' : stale ? 'A newer saved record exists. Your unsaved text is preserved. Close and reopen this review to load it.' : evidenceDirty() ? 'Save owners and proof before uploading or changing the status.' : 'Owner, proof or attachment changes require a fresh completion verdict. To discuss stays open until you choose another status.';
+    inputs.saveHint.textContent = !consent() ? 'Close Delivery review and tick the data-use confirmation to edit or upload.' : stale ? 'A newer saved record exists. Your unsaved text is still here. Close and reopen Delivery review to load it.' : evidenceDirty() ? 'Save owners and proof before uploading or changing the delivery status.' : 'Changing owners, proof or attachments turns Complete or Needs work into Needs recheck. To discuss stays until you change it.';
   }
   function renderOverview() {
     const counts = Object.fromEntries(statuses.map(status => [status, 0]));
@@ -121,7 +126,7 @@ export async function openCompletion({doc, api, consent, requirementId}) {
     const top = el('div', 'completion-detail-heading');
     top.append(el('h3', '', `${req.id} · ${req.priority}`), el('span', `completion-badge ${statusClass(value.status)}`, statusLabel(value.status)));
     detail.append(top, el('h4', '', 'Requirement'), el('p', 'completion-text', req.behavior || 'Not documented'), el('h4', '', 'Acceptance criteria'), el('p', 'completion-text', req.acceptance || 'Not documented'));
-    if (value.status === 'Needs recheck') detail.append(el('p', 'completion-warning', value.baselinePrdRevision !== doc.revision ? `The PRD changed after this evidence was recorded (revision ${value.baselinePrdRevision} → ${doc.revision}). Recheck it against the current requirement.` : 'This requirement or its evidence changed after the last review. Review it again.'));
+    if (value.status === 'Needs recheck') detail.append(el('p', 'completion-warning', value.requirementChanged ? `This requirement changed after its evidence was recorded (PRD v${value.baselinePrdRevision} → v${doc.revision}). Recheck it against the current requirement.` : 'This requirement or its evidence changed after the last review. Review it again.'));
     const missing = el('p', 'completion-warning'); detail.append(missing);
     const owners = field('Engineering owners (role labels, separated by commas)', 'completion-owners', 'input', value.owners.join(', '), 'Frontend engineer, Test engineer');
     const proof = field('Proof explanation', 'completion-proof', 'textarea', value.proof, 'Explain how the acceptance criteria were checked and what the proof shows.');
@@ -142,7 +147,7 @@ export async function openCompletion({doc, api, consent, requirementId}) {
     const uploadLabel = el('label', '', 'Attach proof (up to 25 MiB per file)'); uploadLabel.htmlFor = 'completion-file';
     const file = el('input'); file.id = 'completion-file'; file.type = 'file';
     attachments.append(uploadLabel, file);
-    const reviewHeading = el('h4', 'completion-review-heading', 'Review status');
+    const reviewHeading = el('h4', 'completion-review-heading', 'Delivery status');
     const reviewer = field('Reviewer role', 'completion-reviewer', 'input', draft?.reviewer ?? value.reviewer, 'Test engineer');
     const notes = field('Review notes or discussion question (optional)', 'completion-notes', 'textarea', draft?.notes ?? value.reviewNotes, 'Record what needs discussion, the team’s decision or remaining work.');
     const actions = el('div', 'review-actions');
@@ -150,7 +155,7 @@ export async function openCompletion({doc, api, consent, requirementId}) {
     const toDiscuss = el('button', 'button', 'To discuss');
     const needsWork = el('button', 'button', 'Needs work');
     actions.append(verified, toDiscuss, needsWork);
-    const reviewed = value.reviewedAt ? new Date(value.reviewedAt).toLocaleString() : '';
+    const reviewed = formatDateTime(value.reviewedAt);
     detail.append(owners.group, proof.group, save, saveHint, attachments, reviewHeading, el('p', 'field-hint', 'Mark complete after reviewing the proof. To discuss can be selected before proof or a reviewer is recorded.'), reviewer.group, notes.group, actions);
     if (reviewed) detail.append(el('p', 'field-hint', `Last recorded review: ${value.reviewer || 'role not documented'} · ${reviewed}. Previous evidence is retained when a recheck is required.`));
     const history = el('details', 'completion-history');
@@ -168,8 +173,8 @@ export async function openCompletion({doc, api, consent, requirementId}) {
         if (!items.length) historyContent.append(el('p', 'muted small', 'No previous reviews yet.'));
         for (const previous of items) {
           const entry = el('div', 'completion-history-entry');
-          entry.append(el('p', '', `${statusLabel(previous.status)} · review record ${previous.revision} · PRD revision ${previous.baselinePrdRevision}`));
-          entry.append(el('p', 'muted small', `${previous.reviewer || 'No reviewer'}${previous.reviewedAt ? ` · ${new Date(previous.reviewedAt).toLocaleString()}` : ''}`));
+          entry.append(el('p', '', `${statusLabel(previous.status)} · review record ${previous.revision} · PRD v${previous.baselinePrdRevision}`));
+          entry.append(el('p', 'muted small', `${previous.reviewer || 'No reviewer'}${previous.reviewedAt ? ` · ${formatDateTime(previous.reviewedAt)}` : ''}`));
           entry.append(el('p', 'small', `Owners: ${previous.owners.join(', ') || 'Not documented'}`), el('p', 'completion-text', previous.proof || 'Proof not documented'));
           if (previous.reviewNotes) entry.append(el('p', 'completion-text', previous.reviewNotes));
           historyContent.append(entry);
@@ -177,8 +182,8 @@ export async function openCompletion({doc, api, consent, requirementId}) {
       } catch (error) { historyLoaded = false; historyContent.replaceChildren(el('p', 'completion-warning', error.message)); }
     });
     inputs = {owners: owners.input, proof: proof.input, reviewer: reviewer.input, notes: notes.input, save, saveHint, file, verified, toDiscuss, needsWork, missing};
-    save.addEventListener('click', () => mutate(async () => api(endpoint(), 'PUT', {...expected(), owners: ownersFrom(inputs.owners.value), proof: inputs.proof.value}), true));
-    const review = status => mutate(async () => api(`${endpoint()}/review`, 'POST', {...expected(), status, reviewer: inputs.reviewer.value.trim(), notes: inputs.notes.value}));
+    save.addEventListener('click', () => mutate(async () => api(endpoint(), 'PUT', {...expected(), owners: ownersFrom(inputs.owners.value), proof: inputs.proof.value}), true, saved => `Saved owners and proof for ${saved.requirementId}.`));
+    const review = status => mutate(async () => api(`${endpoint()}/review`, 'POST', {...expected(), status, reviewer: inputs.reviewer.value.trim(), notes: inputs.notes.value}), false, saved => `${saved.requirementId} marked ${statusLabel(saved.status)}.`);
     verified.addEventListener('click', () => review('Complete'));
     toDiscuss.addEventListener('click', () => review('To discuss'));
     needsWork.addEventListener('click', () => review('Needs work'));
@@ -190,17 +195,18 @@ export async function openCompletion({doc, api, consent, requirementId}) {
         const result = await response.json();
         if (!response.ok) { const error = new Error(result.error || 'The attachment could not be saved.'); error.status = response.status; throw error; }
         return result;
-      }, true);
+      }, true, saved => `Attached ${attachment.name} to ${saved.requirementId}.`);
     });
     controls();
   }
-  async function mutate(task, preserveVerdict = false) {
+  async function mutate(task, preserveVerdict = false, success = null) {
     if (busy || stale || !consent()) return;
     busy = true; message(''); controls();
     try {
       const result = await task();
       if (result.requirementId !== selected) throw new Error('The server returned a review for another requirement. Reopen the review.');
       rows.set(selected, result); renderOverview(); renderDetail(preserveVerdict);
+      if (success) confirmSaved(success(result));
     } catch (error) {
       stale = error.status === 409;
       if (inputs) inputs.file.value = '';
@@ -216,7 +222,7 @@ export async function openCompletion({doc, api, consent, requirementId}) {
       const current = await api(`${base}/verification`);
       if (current.documentId !== doc.id || current.prdRevision !== doc.revision) {
         stale = true;
-        throw new Error('This PRD changed. Close and reopen its saved revision before downloading the report.');
+        throw new Error('This PRD changed. Close Delivery review and reopen the PRD before downloading the report.');
       }
       const download = el('a'); download.href = report.href; download.download = ''; document.body.append(download); download.click(); download.remove();
     } catch (error) { message(error.message); }
@@ -226,7 +232,8 @@ export async function openCompletion({doc, api, consent, requirementId}) {
   dialog.addEventListener('cancel', event => { event.preventDefault(); closeReview(); });
   const beforeUnload = event => { if (dirty() || busy) { event.preventDefault(); event.returnValue = ''; } };
   window.addEventListener('beforeunload', beforeUnload);
-  dialog.addEventListener('close', () => { window.removeEventListener('beforeunload', beforeUnload); dialog.remove(); finish(); }, {once: true});
+  dialog.addEventListener('close', () => { clearTimeout(doneTimer); window.removeEventListener('beforeunload', beforeUnload); dialog.remove(); finish(); }, {once: true});
   renderOverview(); renderDetail(); dialog.showModal();
+  (inputs?.owners || close).focus();
   await closed;
 }

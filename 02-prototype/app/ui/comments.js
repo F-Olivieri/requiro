@@ -1,3 +1,5 @@
+import {formatDateTime} from './format.js';
+
 const fieldLabels = {behavior: 'Requirement', acceptance: 'Acceptance criteria', appliesTo: 'Use case', outcome: 'Intended outcome'};
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -5,10 +7,7 @@ const el = (tag, className, text) => {
   if (text !== undefined) node.textContent = text;
   return node;
 };
-const dateLabel = value => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Date not available' : date.toLocaleString();
-};
+const dateLabel = value => formatDateTime(value) || 'Date not available';
 const preview = value => { const chars = Array.from(value || ''); return chars.slice(0, 100).join('') + (chars.length > 100 ? '…' : ''); };
 
 // DOM Range offsets and JavaScript string slices both count UTF-16 code units.
@@ -32,13 +31,13 @@ export function selectedRequirementAnchor(container, selection = container.owner
   return {requirementId, anchor: {field: name, start, end, quote, sourceText}};
 }
 
-export async function openComments({doc, requirementId, anchor, api, consent}) {
+export async function openComments({doc, requirementId, anchor, browse = false, api, consent}) {
   const base = `/api/prds/${encodeURIComponent(doc.id)}/comments`;
   let data = await api(base);
   if (data.documentId !== doc.id || !Array.isArray(data.threads)) throw new Error('The comments do not match this PRD. Reopen it and try again.');
   let threads = data.threads;
   const visibleThreads = () => threads.filter(thread => !requirementId || thread.requirementId === requirementId);
-  let selectedId = anchor ? null : visibleThreads()[0]?.id;
+  let selectedId = anchor && !browse ? null : visibleThreads()[0]?.id ?? null;
   let busy = false;
   let refreshing = false;
   let closed = false;
@@ -50,7 +49,7 @@ export async function openComments({doc, requirementId, anchor, api, consent}) {
   const title = el('h2', '', requirementId ? `Comments on ${requirementId}` : 'PRD comments'); title.id = 'comments-title';
   const close = el('button', 'icon-button', '×'); close.type = 'button'; close.setAttribute('aria-label', 'Close comments');
   heading.append(title, close);
-  dialog.append(heading, el('p', 'muted', `${doc.title} · saved revision ${doc.revision}`));
+  dialog.append(heading, el('p', 'muted', `${doc.title} · saved v${doc.revision}`));
   const authorLabel = el('label', '', 'Author label'); authorLabel.htmlFor = 'comments-author';
   const author = el('input'); author.id = 'comments-author'; author.maxLength = 200; author.placeholder = 'For example, Test engineer';
   dialog.append(authorLabel, author, el('p', 'field-hint', 'Use a role label. This label does not verify anyone’s identity. Comments are shared with people using this workspace.'));
@@ -103,7 +102,7 @@ export async function openComments({doc, requirementId, anchor, api, consent}) {
     post.disabled = !writable || !author.value.trim() || !(text.value.trim() || suggestion.value.trim()) || (!current() && !canStart());
     for (const button of list.querySelectorAll('button')) button.disabled = busy;
     for (const button of body.querySelectorAll('[data-comment-status]')) button.disabled = !writable || !author.value.trim();
-    hint.textContent = !consent() ? 'Acknowledge the material-use statement before posting or changing a discussion.' : !current() && !canStart() && dirty() ? 'The saved PRD changed. Copy your unfinished text, then reopen the saved PRD before starting this comment.' : 'A comment or suggested wording is enough. Posting does not change the PRD or its delivery review.';
+    hint.textContent = !consent() ? 'Tick the data-use confirmation before posting or changing a discussion.' : !current() && !canStart() && dirty() ? 'The saved PRD changed. Copy your unfinished text, then reopen the saved PRD before starting this comment.' : 'A comment or suggested wording is enough. Posting does not change the PRD or its delivery review.';
   }
   function threadButton(label, id) {
     const button = el('button', `comments-item${id === selectedId ? ' active' : ''}`, label); button.type = 'button';
@@ -112,24 +111,24 @@ export async function openComments({doc, requirementId, anchor, api, consent}) {
     button.addEventListener('click', () => switchThread(id)); list.append(button);
   }
   function showQuote(container, selectedAnchor, revision) {
-    container.append(el('p', 'small muted', `${fieldLabels[selectedAnchor.field] || selectedAnchor.field} · saved PRD revision ${revision}`), el('blockquote', 'comments-quote', selectedAnchor.quote));
+    container.append(el('p', 'small muted', `${fieldLabels[selectedAnchor.field] || selectedAnchor.field} · saved PRD v${revision}`), el('blockquote', 'comments-quote', selectedAnchor.quote));
   }
   function render() {
     const focus = rememberFocus();
     list.replaceChildren();
-    if (canStart()) threadButton('New comment on selected text', null);
+    if (canStart()) threadButton(anchor.quote === anchor.sourceText ? `New comment on ${requirementId}` : 'New comment on selected text', null);
     for (const thread of visibleThreads()) {
       const first = thread.messages[0];
       const summary = first ? `${first.author} · ${dateLabel(first.createdAt)}\n${preview(first.text || first.suggestion)}` : 'No messages yet.';
       threadButton(`${thread.requirementId} · ${thread.status}\n${preview(thread.anchor.quote)}\n${summary}`, thread.id);
     }
-    if (!visibleThreads().length) list.append(el('p', 'muted small', 'No comments yet. Select requirement text in the PRD to start a thread.'));
+    if (!visibleThreads().length) list.append(el('p', 'muted small', 'No comments yet. Choose Comment on a requirement, or select some of its words, to start a discussion.'));
     body.replaceChildren();
     const thread = current();
     if (thread) {
       body.append(el('h3', '', `${thread.requirementId} · ${thread.status}`));
       if (thread.requirementPresent === false) body.append(el('p', 'completion-warning', 'This requirement was removed. Its discussion history is kept.'));
-      else if (thread.anchorCurrent === false) body.append(el('p', 'completion-warning', 'The requirement wording has changed. This discussion keeps the original selected words and saved PRD revision.'));
+      else if (thread.anchorCurrent === false) body.append(el('p', 'completion-warning', 'The requirement wording has changed. This discussion keeps the original words and the PRD version they came from.'));
       showQuote(body, thread.anchor, thread.createdPrdRevision);
       for (const item of thread.messages) {
         const entry = el('article', 'comments-message');
@@ -158,7 +157,7 @@ export async function openComments({doc, requirementId, anchor, api, consent}) {
       body.append(status);
     } else if (canStart()) {
       body.append(el('h3', '', `New comment on ${requirementId}`)); showQuote(body, anchor, doc.revision);
-    } else body.append(el('p', 'muted', data.prdRevision !== doc.revision ? 'The saved PRD changed. Reopen it before starting a comment on new selected text.' : 'Choose a discussion, or select words in a requirement to start one.'));
+    } else body.append(el('p', 'muted', data.prdRevision !== doc.revision ? 'The saved PRD changed. Reopen it before starting a new comment.' : 'Choose a discussion, or choose Comment on a requirement to start one.'));
     controls();
     restoreFocus(focus);
   }
@@ -209,7 +208,7 @@ export async function openComments({doc, requirementId, anchor, api, consent}) {
   const finished = new Promise(resolve => dialog.addEventListener('close', () => {
     closed = true; clearInterval(poll); window.removeEventListener('beforeunload', beforeUnload); dialog.remove(); resolve();
   }, {once: true}));
-  document.body.append(dialog); render(); dialog.showModal();
+  document.body.append(dialog); render(); dialog.showModal(); author.focus();
   const poll = setInterval(() => refresh().catch(error => { if (!closed) message(`Comments could not refresh. Your unfinished text is still here. ${error.message}`, 'refresh'); }), 3000);
   return finished;
 }

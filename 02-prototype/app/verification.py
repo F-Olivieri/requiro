@@ -8,12 +8,13 @@ import uuid
 import zipfile
 from urllib.parse import quote
 
-from prd_store import InputError, markdown, missing, now, text
-from use_cases import use_case_text
+from prd_store import InputError, local_time, markdown, missing, now, text
+from use_cases import describe_use_case, use_case_text
 
 
 MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
 STATUSES = ('Not reviewed', 'To discuss', 'Needs work', 'Verified', 'Needs recheck')
+VERDICT_FIELDS = ('behavior', 'acceptance', 'appliesTo', 'outcome')
 
 
 def status_label(status):
@@ -32,10 +33,9 @@ def required_gaps(requirement, item):
 
 
 def fingerprint(doc, requirement):
-    context = {key: doc['sections'][key] for key in
-               ('scope', 'useCases', 'inputsOutputs', 'nonGoals', 'quality')}
-    return hashlib.sha256(json.dumps([requirement, context], sort_keys=True,
-                                    ensure_ascii=False).encode()).hexdigest()
+    content = {key: requirement.get(key) for key in VERDICT_FIELDS}
+    content['useCase'] = describe_use_case(requirement.get('appliesTo') or '', doc['sections'].get('useCases', ''))['label']
+    return hashlib.sha256(json.dumps(content, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
 def filename(value):
@@ -64,18 +64,28 @@ class Verification:
                          (doc['id'], requirement['id'])).fetchone()
         current = fingerprint(doc, requirement)
         item = {'requirementId': requirement['id'], 'requirementFingerprint': current,
+                'verdictFingerprint': None, 'requirementChanged': False,
                 'baselinePrdRevision': None, 'revision': 0, 'owners': [], 'proof': '',
                 'attachments': [], 'status': 'Not reviewed', 'reviewer': '',
                 'reviewedAt': None, 'reviewNotes': '', 'savedAt': None}
         if not row:
             return item
-        item.update(json.loads(row[0]))
-        if item['status'] != 'To discuss' and (
-                item['requirementFingerprint'] != current or item['baselinePrdRevision'] != doc['revision']
-                or item['status'] == 'Verified' and required_gaps(requirement, item)):
+        stored = json.loads(row[0])
+        item.update(stored)
+        if 'verdictFingerprint' not in stored:
+            item['verdictFingerprint'] = self._baseline_fingerprint(db, doc['id'], requirement['id'], item['baselinePrdRevision'])
+        item.update(requirementFingerprint=current, requirementChanged=item['verdictFingerprint'] != current)
+        if item['status'] not in ('Not reviewed', 'To discuss') and (
+                item['requirementChanged'] or item['status'] == 'Verified' and required_gaps(requirement, item)):
             item['status'] = 'Needs recheck'
-        item['requirementFingerprint'] = current
         return item
+
+    def _baseline_fingerprint(self, db, document_id, requirement_id, revision):
+        row = db.execute('SELECT data FROM revisions WHERE document_id=? AND revision=?',
+                         (document_id, revision)).fetchone()
+        baseline = json.loads(row[0]) if row else None
+        requirement = next((r for r in baseline['sections']['requirements'] if r['id'] == requirement_id), None) if baseline else None
+        return fingerprint(baseline, requirement) if requirement else None
 
     def _snapshot(self, db, document_id):
         doc = self.store._get(db, document_id)
@@ -93,18 +103,19 @@ class Verification:
             raise InputError('Numeric expectedPrdRevision and expectedRevision are required.')
         doc = self.store._get(db, document_id)
         if doc['revision'] != expected_prd:
-            raise InputError('The PRD changed. Reload before recording completion evidence or a team review.', 409)
+            raise InputError('The PRD changed. Reload before recording owners, proof or a delivery status.', 409)
         requirement = next((r for r in doc['sections']['requirements'] if r['id'] == requirement_id), None)
         if requirement is None:
             raise InputError('Requirement not found in the current PRD.', 404)
         item = self._item(db, doc, requirement)
         if item['revision'] != expected:
-            raise InputError('Completion evidence changed elsewhere. Reload before saving or reviewing.', 409)
+            raise InputError('Owners or proof changed elsewhere. Reload before saving or changing a delivery status.', 409)
         return doc, item
 
     def _save(self, db, doc, item):
         item['revision'] += 1
         item['baselinePrdRevision'] = doc['revision']
+        item.update(verdictFingerprint=item['requirementFingerprint'], requirementChanged=False)
         item['savedAt'] = now()
         payload = json.dumps(item, ensure_ascii=False)
         db.execute('INSERT OR REPLACE INTO verification VALUES (?, ?, ?)',
@@ -215,13 +226,13 @@ class Verification:
             doc, items = self._snapshot(db, document_id)
         use_cases = self.store.use_case_context(doc)
         counts = {status: sum(item['status'] == status for item in items) for status in STATUSES}
-        lines = [f"# Completion review: {doc['title']}", '',
-                 f"{document_id} · Current PRD revision {doc['revision']}", '',
+        lines = [f"# Delivery review: {doc['title']}", '',
+                 f"{document_id} · Saved PRD v{doc['revision']}", '',
                  'Complete means an explicit recorded team verdict. This workspace does not execute or independently validate proof.', '',
                  'To discuss means a question or decision remains open. These requirements count as pending.', '',
                  f"Requirements: {len(items)}. " + '; '.join(f'{status_label(status)}: {counts[status]}' for status in STATUSES) + '.', '',
-                 'All current requirements have a recorded Complete team verdict.' if items and counts['Verified'] == len(items)
-                 else 'Completion has gaps: review the not-reviewed, to-discuss, needs-work and needs-recheck requirements below.', '',
+                 'Delivery review complete: all current requirements have a recorded Complete team verdict.' if items and counts['Verified'] == len(items)
+                 else 'Delivery review has gaps: review the not-reviewed, to-discuss, needs-work and needs-recheck requirements below.', '',
                  '[Full current PRD](prd.md)', '']
         output = io.BytesIO()
         with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED) as bundle:
@@ -230,16 +241,16 @@ class Verification:
                 gaps = required_gaps(requirement, item)
                 lines.extend([f"## {requirement['id']} · {status_label(item['status'])}", '',
                     'Required information gaps: ' + (', '.join(gaps) if gaps else 'None.'), '',
-                    f"Priority: {requirement['priority']}" + (' (proposed)' if requirement['proposed'] else ''),
+                    f"Priority: {requirement['priority']}" + (' (not yet agreed)' if requirement['proposed'] else ''),
                     f"Use case: {use_case_text(doc, requirement, use_cases)}",
-                    f"Outcome: {requirement['outcome'] or 'Not documented'}", '',
-                    'Behavior:', requirement['behavior'] or 'Not documented', '',
-                    'Acceptance:', requirement['acceptance'] or 'Not documented', '',
+                    f"Intended outcome: {requirement['outcome'] or 'Not documented'}", '',
+                    'Requirement:', requirement['behavior'] or 'Not documented', '',
+                    'Acceptance criteria:', requirement['acceptance'] or 'Not documented', '',
                     'Engineering owners: ' + (', '.join(item['owners']) or 'Not assigned'), '',
                     'Proof explanation:', item['proof'] or 'Not documented', '',
                     f"Last reviewer role: {item['reviewer'] or 'Not recorded'}",
-                    f"Last reviewed at: {item['reviewedAt'] or 'Not recorded'}",
-                    f"Evidence baseline PRD revision: {item['baselinePrdRevision'] or 'Not recorded'}",
+                    f"Last reviewed at: {local_time(item['reviewedAt']) or 'Not recorded'}",
+                    f"Proof recorded for PRD version: {'v' + str(item['baselinePrdRevision']) if item['baselinePrdRevision'] else 'Not recorded'}",
                     'Review notes: ' + (item['reviewNotes'] or 'Not recorded'), '', 'Proof attachments:', ''])
                 for metadata in item['attachments']:
                     attachment, content = self._attachment(item, metadata['id'])
@@ -250,5 +261,5 @@ class Verification:
                 if not item['attachments']:
                     lines.append('None attached.')
                 lines.append('')
-            bundle.writestr('completion-report.md', '\n'.join(lines))
+            bundle.writestr('delivery-review.md', '\n'.join(lines))
         return output.getvalue()

@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {validateResponse, buildMarkdown} from './ui/app.js';
+import {validateResponse, parseReply, correctionRequest, buildMarkdown} from './ui/app.js';
 import {useCaseText} from './ui/use-cases.js';
+import {formatDateTime} from './ui/format.js';
 
 // Run with: node test_ui.mjs
 const keys = ['problem', 'users', 'outcomes', 'useCases', 'scope', 'nonGoals', 'inputsOutputs', 'quality', 'metrics', 'risks', 'decisions', 'evidence'];
@@ -28,16 +29,42 @@ assert.equal(validateResponse(response, doc).proposal.changes.problem, 'Proposed
 assert.equal(doc.sections.problem, 'Raw <b>text</b> with\nnewlines', 'Validating a proposal must not mutate the document.');
 assert.throws(() => validateResponse({...response, proposal: {...response.proposal, documentId: 'wrong-doc'}}, doc), /different document/);
 assert.throws(() => validateResponse({...response, proposal: {...response.proposal, baseRevision: 1}}, doc), /stale/);
-assert.throws(() => validateResponse({...response, proposal: {...response.proposal, changes: {approvedRevision: 1}}}, doc), /Unknown/);
-assert.throws(() => validateResponse({...response, proposal: {...response.proposal, changes: {
-  requirements: [{...doc.sections.requirements[0], id: 'R-002'}],
-}}}, doc), /retired/);
-assert.throws(() => validateResponse({...response, proposal: {...response.proposal, changes: {
-  requirements: [{...doc.sections.requirements[0], id: 'R-004', proposed: 'true'}],
-}}}, doc), /boolean/);
-assert.equal(validateResponse({...response, proposal: {...response.proposal, changes: {
-  requirements: [...doc.sections.requirements, {...doc.sections.requirements[0], id: 'R-004'}],
-}}}, doc).proposal.changes.requirements.length, 2);
+const docBeforeChecks = JSON.stringify(doc);
+// R-040: replies wrapped in prose or code fences are read; valid parts stay usable and invalid parts are listed.
+const fenced = `Here is the update you asked for:\n\n\`\`\`json\n${JSON.stringify(response, null, 2)}\n\`\`\`\nTell me if you want more.`;
+assert.deepEqual(parseReply(fenced), response);
+assert.deepEqual(parseReply(`Note {not json} first. ${JSON.stringify(response)} Done.`), response);
+assert.throws(() => parseReply('   '), /Paste the assistant reply first/);
+assert.throws(() => parseReply('{"reply": "Missing brace"'), /No reply in the expected format/);
+assert.throws(() => parseReply('{"reply": "Trailing comma",}'), /cannot be read/);
+const mixed = validateResponse({...response, notes: 'Extra', proposal: {...response.proposal, changes: {problem: 'Proposed text', approvedRevision: 1, users: 42, scope: doc.sections.scope}}}, doc);
+assert.deepEqual(Object.keys(mixed.proposal.changes), ['problem'], 'Valid fields stay available; invalid and unchanged fields are not offered.');
+assert.ok(mixed.issues.some(issue => issue.includes('“approvedRevision” is not a PRD section')));
+assert.ok(mixed.issues.some(issue => issue.startsWith('Who it is for was skipped')), 'Problems name fields with their visible labels.');
+assert.ok(mixed.issues.some(issue => issue.includes('“notes” was ignored')));
+const reqChanges = requirements => validateResponse({...response, proposal: {...response.proposal, changes: {requirements}}}, doc);
+const retired = reqChanges([doc.sections.requirements[0], {...doc.sections.requirements[0], id: 'R-002'}]);
+assert.ok(retired.issues.some(issue => issue.startsWith('R-002 was skipped') && issue.includes('R-004')));
+assert.equal(retired.proposal, null, 'An unchanged requirement is not offered as a change.');
+const flagged = reqChanges([doc.sections.requirements[0], {...doc.sections.requirements[0], id: 'R-004', proposed: 'true'}, {...doc.sections.requirements[0], id: 'R-005', behavior: undefined}]);
+assert.ok(flagged.issues.some(issue => issue.startsWith('R-004 was skipped') && issue.includes('Priority not yet agreed')));
+assert.ok(flagged.issues.some(issue => issue === 'R-005 was skipped: it is missing Requirement.'));
+const perRequirement = reqChanges([{...doc.sections.requirements[0], behavior: 'Browse and filter the list'}, {...doc.sections.requirements[0], id: 'R-004', behavior: 'Save a suggestion', owner: 'A fictional owner'}, {id: 'R-009'}]);
+assert.deepEqual(perRequirement.proposal.requirementChanges.map(item => [item.id, item.kind]), [['R-001', 'changed'], ['R-004', 'new']]);
+assert.equal(perRequirement.proposal.requirementChanges[0].before.behavior, 'Browse the list');
+assert.equal(perRequirement.proposal.requirementChanges[1].after.proposed, false, 'An omitted priority flag keeps the existing value.');
+assert.ok(perRequirement.issues.some(issue => issue.startsWith('R-009 was skipped')));
+assert.ok(perRequirement.issues.some(issue => issue.includes('“owner”')));
+assert.deepEqual(reqChanges([]).proposal.requirementChanges.map(item => [item.id, item.kind]), [['R-001', 'removed']]);
+const unidentified = reqChanges([{behavior: 'No ID'}]);
+assert.equal(unidentified.proposal, null);
+assert.ok(unidentified.issues.some(issue => issue.includes('Removing R-001 was not offered')));
+assert.throws(() => validateResponse({proposal: {...response.proposal, changes: {bogus: 'x'}}}, doc), error => error.message === 'Nothing in this reply can be used.' && error.issues.length === 2 && error.correctable === true);
+assert.throws(() => validateResponse({...response, proposal: {baseRevision: 2, changes: {}}}, doc), error => /documentId/.test(error.message) && error.correctable === true);
+assert.throws(() => validateResponse({...response, proposal: {...response.proposal, baseRevision: 1}}, doc), error => error.correctable === false);
+const correction = correctionRequest(mixed.issues, doc);
+for (const expected of [...mixed.issues, '"documentId": "fictional-doc"', '"baseRevision": 2', 'users (Who it is for)', 'appliesTo (Use case)', 'R-004']) assert.ok(correction.includes(expected), expected);
+assert.equal(JSON.stringify(doc), docBeforeChecks, 'Checking replies must not mutate the document.');
 assert.ok(buildMarkdown(doc).includes('Raw <b>text</b> with\nnewlines'), 'Preview must preserve entered text and newlines.');
 assert.ok(buildMarkdown(doc).includes('Document ID: fictional-doc'), 'Preview must identify its document.');
 assert.ok(buildMarkdown(doc).includes('R-001'), 'Preview must preserve stable requirement IDs.');
@@ -86,6 +113,7 @@ context.document = {
     assert.ok(['#prd-visualization button', '#editor-content input, #editor-content textarea, #editor-content select, #editor-content button[data-edit]', '[data-document-action]', '#proposal button'].includes(selector), selector);
     return [];
   },
+  createElement: tag => ({tag, setAttribute() {}, addEventListener() {}}),
 };
 vm.runInContext('state.busy = true; updateControls();', context);
 assert.ok(libraryButtons.every(button => button.disabled), 'Library controls must disable during initial loading.');
@@ -117,7 +145,7 @@ assert.equal(controls.get('#preview-note').textContent.includes('unsaved edits')
 // Section shortcuts use the existing editor without saving or discarding drafts.
 let focused;
 context.document.querySelector = selector => {
-  if (!controls.has(selector)) controls.set(selector, {classList: {toggle() {}}, setAttribute() {}});
+  if (!controls.has(selector)) controls.set(selector, {classList: {toggle() {}}, setAttribute() {}, append() {}});
   const node = controls.get(selector);
   node.focus = () => { focused = selector; };
   return node;
@@ -146,7 +174,7 @@ assert.equal(visualizationButtons[0].disabled, false, 'Edit stays available to e
 assert.equal(visualizationButtons[1].disabled, true, 'Existing dirty-draft review controls keep their gate.');
 vm.runInContext('state.consent = true; state.doc.status = "Archived"; updateControls(); editSection("problem");', context);
 assert.equal(visualizationButtons[0].disabled, true);
-assert.equal(focused, '#archive-prd');
+assert.equal(focused, '#lifecycle-action');
 assert.ok(controls.get('#global-message').textContent.includes('Reopen'));
 vm.runInContext('state.doc.status = "Approved"; state.doc.approvedRevision = 2; editSection("problem");', context);
 assert.equal(vm.runInContext('state.doc.status', context), 'Approved', 'Opening the editor does not change approval.');
@@ -222,7 +250,7 @@ controls.set('#project-filter', {value: ''});
 context.libraryFixture = [{id: 'one', title: 'A <b>literal</b> title', status: 'Approved', revision: 7, stage: 'Review', projectIds: ['p1']}, {id: 'two', title: 'Other PRD', status: 'Draft', revision: 2, stage: 'Scope', projectIds: ['p2']}];
 vm.runInContext('state.doc = null; state.docs = libraryFixture; renderLibrary();', context);
 let library = controls.get('#doc-list');
-assert.deepEqual(library.children[0].children.map(node => node.textContent), ['A <b>literal</b> title', 'Approved', 'v7', 'Review']);
+assert.deepEqual(library.children[0].children.map(node => node.textContent), ['A <b>literal</b> title', 'Approved', 'v7', 'Approval']);
 assert.equal(library.children[0].children[1].dataset.status, 'Approved');
 controls.get('#project-filter').value = 'p2';
 vm.runInContext('renderLibrary()', context);
@@ -242,7 +270,7 @@ composeContext.document = {
   querySelector(selector) {
     if (!composeControls.has(selector)) composeControls.set(selector, {
       value: '', dataset: {}, classList: {toggle() {}}, setAttribute() {},
-      addEventListener() {}, focus() {}, select() {}, showModal() {},
+      addEventListener() {}, focus() {}, select() {}, showModal() {}, close() {}, replaceChildren() {}, append() {},
     });
     return composeControls.get(selector);
   },
@@ -262,7 +290,7 @@ composeContext.api = async (path, method, data) => {
   if (method === 'PUT') { puts.push(structuredClone(data)); return {...structuredClone(data.doc), revision: data.expectedRevision + 1}; }
   assert.ok(path.endsWith('/packet'));
   if (packetFails) throw new Error('The local packet service is unavailable.');
-  return {packet: 'Fictional context packet.'};
+  return {packet: 'Fictional context packet.', doc: {chat: [{role: 'user', content: data.message}]}};
 };
 for (let attempt = 1; attempt <= 2; attempt++) {
   compose.value = `Unsent fictional question ${attempt}`;
@@ -290,6 +318,38 @@ packetFails = false;
 await vm.runInContext('copyPacket()', composeContext);
 assert.equal(compose.value, '', 'Successful packet preparation consumes the compose draft.');
 assert.equal(vm.runInContext('state.doc.chat.at(-1).content', composeContext), 'Keep this question if preparation fails.');
+
+// R-039: copying for the assistant records the question without a new version, so the reply still matches after Save.
+const putsAfterCopy = puts.length;
+const copiedRevision = vm.runInContext('state.saved.revision', composeContext);
+assert.equal(vm.runInContext('dirty()', composeContext), false, 'The recorded question must not leave unsaved changes.');
+await vm.runInContext('save()', composeContext);
+assert.equal(puts.length, putsAfterCopy, 'Saving after copying must not create a version.');
+composeContext.copiedReply = {reply: 'A fictional reply.', proposal: {documentId: doc.id, baseRevision: copiedRevision, changes: {users: 'Fictional readers.'}}};
+assert.equal(vm.runInContext('validateResponse(copiedReply, state.saved).proposal.changes.users', composeContext), 'Fictional readers.');
+const approvedChat = {...structuredClone(composeFixture), status: 'Approved', revision: 7, approvedRevision: 7, chat: []};
+composeContext.approvedChat = approvedChat;
+vm.runInContext('openProposalReview=()=>{}; state.doc=clone(approvedChat); state.saved=clone(approvedChat); state.proposal=null;', composeContext);
+const chatPosts = [];
+composeContext.api = async (path, method, data) => {
+  assert.notEqual(method, 'PUT', 'Conversation changes must not save a PRD version.');
+  if (path.endsWith('/packet')) return {packet: 'Fictional context packet.', doc: {...structuredClone(approvedChat), chat: [{role: 'user', content: data.message}]}};
+  assert.ok(path.endsWith('/chat'));
+  chatPosts.push(structuredClone(data));
+  return {...structuredClone(approvedChat), chat: [{role: 'user', content: 'Suggest a clearer user group.'}, ...data.append]};
+};
+compose.value = 'Suggest a clearer user group.';
+await vm.runInContext('copyPacket()', composeContext);
+await vm.runInContext('save()', composeContext);
+composeContext.document.querySelector('#response-json').value = `Sure, here it is:\n\`\`\`json\n${JSON.stringify({reply: 'Try naming the readers.', proposal: {documentId: doc.id, baseRevision: 7, changes: {users: 'Members of a fictional book club.'}}})}\n\`\`\``;
+await vm.runInContext('readResponse()', composeContext);
+assert.deepEqual(chatPosts.map(body => body.expectedRevision), [7]);
+assert.equal(vm.runInContext('state.saved.status', composeContext), 'Approved', 'A conversation save keeps the approval.');
+assert.equal(vm.runInContext('state.saved.revision', composeContext), 7);
+assert.equal(vm.runInContext('state.doc.chat.at(-1).content', composeContext), 'Try naming the readers.');
+assert.equal(vm.runInContext('state.proposal.changes.users', composeContext), 'Members of a fictional book club.');
+assert.equal(vm.runInContext('dirty()', composeContext), false, 'Suggestions stay pending until applied.');
+vm.runInContext('state.proposal=null;', composeContext);
 await vm.runInContext('init()', composeContext);
 vm.runInContext('state.saved=clone(state.doc);', composeContext);
 compose.value = 'Protect this unsent question before reload.';
@@ -320,10 +380,10 @@ for (let attempt = 1; attempt <= 2; attempt++) {
   assert.ok(printDocument.textContent.includes(`Unsaved fictional print title ${attempt}`));
   assert.ok(printDocument.textContent.includes(`Unsaved fictional behavior ${attempt}`));
   assert.match(printDocument.textContent, /^Status: Unsaved draft/m, 'Print must label working changes as an unsaved draft.');
-  assert.match(printDocument.textContent, /based on saved revision 20/);
-  assert.match(printDocument.textContent, /^Last approved revision: 20$/m, 'The historical approval remains recorded.');
+  assert.match(printDocument.textContent, /based on saved v20/);
+  assert.match(printDocument.textContent, /^Last approved version: v20$/m, 'The historical approval remains recorded.');
   assert.doesNotMatch(printDocument.textContent, /^Status: Approved$/m);
-  assert.doesNotMatch(printDocument.textContent, /^Revision: 20$/m, 'Working changes must not claim to be the saved revision.');
+  assert.doesNotMatch(printDocument.textContent, /^Version: v20$/m, 'Working changes must not claim to be the saved revision.');
   assert.equal(vm.runInContext('JSON.stringify(state.doc)', composeContext), workingBeforePrint, 'Printing must not mutate the working document.');
   assert.equal(vm.runInContext('JSON.stringify(state.saved)', composeContext), savedPrintBaseline, 'Printing must not mutate the saved baseline.');
 }
@@ -340,14 +400,17 @@ class HistoryNode {
   constructor(tag) { this.tag = tag; this.children = []; this.listeners = {}; this.classList = {toggle() {}}; }
   append(...nodes) { this.children.push(...nodes); }
   replaceChildren(...nodes) { this.children = nodes; }
+  setAttribute() {}
   addEventListener(name, handler) { (this.listeners[name] ||= []).push(handler); }
   querySelectorAll(tag) { return this.children.flatMap(node => [...(node.tag === tag ? [node] : []), ...node.querySelectorAll(tag)]); }
   showModal() { this.open = true; }
   close() { this.open = false; }
   async click() { if (!this.disabled) for (const handler of this.listeners.click || []) await handler(); }
+  focus() {}
 }
 const historyContext = vm.createContext({});
 historyContext.useCaseText = useCaseText;
+historyContext.formatDate = formatDateTime;
 vm.runInContext(source.replace(/^import .*;\n/gm, '').replace(/^export function /gm, 'function '), historyContext);
 const historyControls = new Map();
 historyContext.document = {
@@ -385,6 +448,7 @@ assert.equal((await inspectHistory()).disabled, true, 'The existing acknowledgem
 // Comments use saved wording while leaving unrelated PRD edits untouched.
 const commentCalls = [];
 historyContext.openComments = async options => commentCalls.push(options);
+historyContext.renderPrdView = () => {};
 historyContext.document.querySelector('#save-prd').focus = () => {};
 historyContext.commentAnchor = {field: 'behavior', start: 0, end: 6, quote: 'Browse', sourceText: approvedPrintFixture.sections.requirements[0].behavior};
 vm.runInContext('state.doc=clone(historical); state.saved=clone(historical); state.doc.title="Unsaved comment context"; state.consent=true;', historyContext);

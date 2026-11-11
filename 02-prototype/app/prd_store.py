@@ -18,11 +18,14 @@ SECTION_KEYS = (
     'inputsOutputs', 'requirements', 'quality', 'metrics', 'risks',
     'decisions', 'evidence',
 )
-SECTION_LABELS = (
-    'Problem', 'Users', 'Outcomes', 'Use cases', 'Scope', 'Non-goals',
-    'Inputs and outputs', 'Requirements', 'Quality and operation',
-    'Success metrics', 'Risks and dependencies', 'Open decisions', 'Evidence',
-)
+SECTION_LABELS = {
+    'problem': 'The problem', 'users': 'Who it is for', 'outcomes': 'The intended outcome',
+    'useCases': 'Use cases', 'scope': 'In scope', 'nonGoals': 'Out of scope',
+    'inputsOutputs': 'Inputs and outputs', 'requirements': 'Requirements',
+    'quality': 'Quality and constraints', 'metrics': 'Success measures',
+    'risks': 'Risks and dependencies', 'decisions': 'Open decisions',
+    'evidence': 'Evidence and assumptions',
+}
 STAGES = ('Discover', 'Scope', 'Requirements', 'Review')
 MAX_BYTES = 1_048_576
 
@@ -35,6 +38,15 @@ class InputError(ValueError):
 
 def now():
     return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
+
+
+def local_time(value):
+    try:
+        moment = datetime.datetime.fromisoformat(value).astimezone()
+    except (TypeError, ValueError):
+        return ''
+    offset = moment.strftime('%z')
+    return f"{moment:%b} {moment.day}, {moment:%Y}, {moment:%H:%M} (UTC{offset[:3]}:{offset[3:]})"
 
 
 def text(value, label, limit=20_000):
@@ -94,17 +106,27 @@ def missing(value):
     return value.strip().casefold() in ('', 'not documented', 'unknown', 'unresolved', 'tbd', 'tbc')
 
 
+APPROVAL_SECTIONS = {key: SECTION_LABELS[key] for key in ('problem', 'users', 'outcomes', 'useCases', 'scope')}
+APPROVAL_FIELDS = {'behavior': 'requirement', 'appliesTo': 'use case', 'outcome': 'intended outcome',
+                   'acceptance': 'acceptance criteria'}
+STATUS_LABELS = {'In review': 'Awaiting approval'}
+
+
+def plain_list(items):
+    return items[0] if len(items) == 1 else ', '.join(items[:-1]) + ' and ' + items[-1]
+
+
 def approval_gaps(doc):
     sections = doc['sections']
-    gaps = [key for key in ('problem', 'users', 'outcomes', 'useCases', 'scope') if missing(sections[key])]
+    gaps = [f'“{label}” is empty' for key, label in APPROVAL_SECTIONS.items() if missing(sections[key])]
     if not sections['requirements']:
-        gaps.append('at least one requirement')
+        gaps.append('Add at least one requirement')
     for req in sections['requirements']:
-        for key in ('behavior', 'acceptance', 'outcome', 'appliesTo'):
-            if missing(req[key]):
-                gaps.append(f"{req['id']} {key}")
+        absent = [label for key, label in APPROVAL_FIELDS.items() if missing(req[key])]
+        if absent:
+            gaps.append(f"{req['id']} needs its {plain_list(absent)}")
         if req['proposed']:
-            gaps.append(f"{req['id']} priority agreement")
+            gaps.append(f"{req['id']} priority is not yet agreed")
     return gaps
 
 
@@ -214,11 +236,11 @@ class Store:
             if revision is None:
                 return self._get(db, document_id)
             if type(revision) is not int or not 0 < revision < 2 ** 63:
-                raise InputError('Choose a positive revision within the supported numeric range.')
+                raise InputError('Choose a saved version number, such as 1 for v1.')
             row = db.execute('SELECT data FROM revisions WHERE document_id = ? AND revision = ?',
                              (document_id, revision)).fetchone()
             if not row:
-                raise InputError('Revision not found.', 404)
+                raise InputError('That version of this PRD was not found.', 404)
             return json.loads(row[0])
 
     def summaries(self):
@@ -395,7 +417,7 @@ class Store:
                     added.append((source_id, source_revision, source_req, document_id, req['id'], expected + 1, now()))
                 doc['sections'] = validated_sections(doc['sections'])
                 doc.update(status='Draft', revision=expected + 1, updatedAt=now())
-                self._record(db, doc, f'Imported {len(added)} requirement(s) from {source_id} revision {source_revision}')
+                self._record(db, doc, f"Imported {len(added)} requirement(s) from “{source['title'] or source_id}” revision {source_revision}")
                 db.executemany('INSERT INTO requirement_imports VALUES (?, ?, ?, ?, ?, ?, ?)', added)
                 relations = self._relationships(db, document_id)['imports']
                 imported_ids = {row[4] for row in added}
@@ -437,6 +459,38 @@ class Store:
                 raise
         return doc
 
+    def _write_chat(self, db, current, chat):
+        doc = {**current, 'chat': chat}
+        payload = json.dumps(doc, ensure_ascii=False)
+        if len(payload.encode()) > MAX_BYTES:
+            raise InputError('The conversation is too large to save. Clear the conversation to continue.')
+        db.execute('UPDATE documents SET data = ? WHERE id = ?', (payload, doc['id']))
+        return doc
+
+    def update_chat(self, document_id, expected, append=(), clear=False):
+        """Save conversation changes without creating a revision or changing status."""
+        if type(expected) is not int:
+            raise InputError('A numeric expectedRevision is required.')
+        if not isinstance(append, (list, tuple)) or type(clear) is not bool:
+            raise InputError('Send messages to add as a list, and clear as true or false.')
+        with self.connection() as db:
+            try:
+                db.execute('BEGIN IMMEDIATE')
+                current = self._get(db, document_id)
+                if current['revision'] != expected:
+                    raise InputError('This PRD changed elsewhere. Reload it before continuing the conversation.', 409)
+                if current['status'] == 'Archived':
+                    raise InputError('Reopen the archived PRD before changing its conversation.')
+                chat = [] if clear else current['chat']
+                if len(chat) + len(append) > 100:
+                    raise InputError('This conversation is full. Choose Clear conversation to continue; the PRD content stays the same.')
+                doc = self._write_chat(db, current, validated_chat(chat + list(append)))
+                db.commit()
+                return doc
+            except Exception:
+                db.rollback()
+                raise
+
     def mutate(self, document_id, expected, *, candidate=None, action=None, revision=None):
         if type(expected) is not int:
             raise InputError('A numeric expectedRevision is required.')
@@ -465,20 +519,23 @@ class Store:
                             raise InputError(f"{req['id']} is retired. Add a new requirement ID or restore a historical revision.")
                     doc['nextRequirementNumber'] = max(current['nextRequirementNumber'],
                         max([int(r['id'][2:]) for r in doc['sections']['requirements']] + [0]) + 1)
-                    if all(doc[k] == current[k] for k in ('title', 'stage', 'sections', 'chat')):
+                    if all(doc[k] == current[k] for k in ('title', 'stage', 'sections')):
+                        if doc['chat'] != current['chat']:
+                            current = self._write_chat(db, current, doc['chat'])
+                            db.commit()
                         return current
                     doc['status'] = 'Draft'
                 elif action == 'review':
                     if current['status'] != 'Draft':
-                        raise InputError('Only a draft can enter review.')
+                        raise InputError('Only a draft can be sent for approval.')
                     doc['status'] = 'In review'
                     doc['stage'] = 'Review'
                 elif action == 'approve':
                     if current['status'] != 'In review':
-                        raise InputError('Move this exact draft into review before approval.')
+                        raise InputError('Send this version for approval before approving it.')
                     gaps = approval_gaps(current)
                     if gaps:
-                        raise InputError('Resolve these approval gaps: ' + ', '.join(gaps))
+                        raise InputError('Approval is blocked. ' + '. '.join(gaps) + '.')
                     doc['status'] = 'Approved'
                     doc['approvedRevision'] = expected + 1
                 elif action == 'archive':
@@ -491,15 +548,15 @@ class Store:
                     doc['status'] = 'Draft'
                 elif action == 'restore':
                     if current['status'] == 'Archived':
-                        raise InputError('Reopen the PRD before restoring a revision.')
+                        raise InputError('Reopen the PRD before restoring an earlier version.')
                     if type(revision) is not int or not 0 < revision < 2 ** 63:
-                        raise InputError('Choose a positive revision within the supported numeric range.')
+                        raise InputError('Choose a saved version number, such as 1 for v1.')
                     row = db.execute('SELECT data FROM revisions WHERE document_id=? AND revision=?',
                                      (document_id, revision)).fetchone()
                     if not row:
-                        raise InputError('Revision not found.', 404)
+                        raise InputError('That version of this PRD was not found.', 404)
                     historical = json.loads(row[0])
-                    for key in ('title', 'stage', 'sections', 'chat'):
+                    for key in ('title', 'stage', 'sections'):
                         doc[key] = historical[key]
                     doc['status'] = 'Draft'
                     reason = f'Restored revision {revision} as a new draft'
@@ -518,28 +575,33 @@ class Store:
         with self.connection() as db:
             self._get(db, document_id)
             result = []
-            for data, reason in db.execute('SELECT data, reason FROM revisions WHERE document_id=? ORDER BY revision DESC', (document_id,)):
+            def titled(match):
+                row = db.execute('SELECT data FROM documents WHERE id=?', (match[1],)).fetchone()
+                return f"from “{json.loads(row[0])['title']}” revision" if row else match[0]
+            for data, reason in db.execute('SELECT data, reason FROM revisions WHERE document_id=? ORDER BY revision DESC', (document_id,)).fetchall():
                 doc = json.loads(data)
+                reason = re.sub(r'from (PRD-[0-9a-f]{12}) revision', titled, reason)
                 result.append({**{key: doc[key] for key in ('revision', 'status', 'title', 'updatedAt')}, 'reason': reason})
             return result
 
 
 def markdown(doc, use_cases=None):
     lines = [f"# {doc['title']}", '',
-             f"{doc['id']} · Revision {doc['revision']} · {doc['status']} · {doc['stage']}",
-             f"Updated: {doc['updatedAt']}",
-             f"Last approved revision: {doc['approvedRevision'] or 'None'}", '']
-    for key, label in zip(SECTION_KEYS, SECTION_LABELS):
-        lines.extend([f'## {label}', ''])
+             f"{doc['id']} · v{doc['revision']} · {STATUS_LABELS.get(doc['status'], doc['status'])} · "
+             + ('Approval' if doc['stage'] == 'Review' else doc['stage']),
+             f"Updated: {local_time(doc['updatedAt']) or doc['updatedAt']}",
+             'Last approved version: ' + (f"v{doc['approvedRevision']}" if doc['approvedRevision'] else 'None'), '']
+    for key in SECTION_KEYS:
+        lines.extend([f'## {SECTION_LABELS[key]}', ''])
         if key != 'requirements':
             lines.extend([doc['sections'][key] or 'Not documented', ''])
         else:
             for req in doc['sections'][key]:
-                lines.extend([f"### {req['id']} · {req['priority']}" + (' (proposed)' if req['proposed'] else ''), '',
+                lines.extend([f"### {req['id']} · {req['priority']}" + (' (not yet agreed)' if req['proposed'] else ''), '',
                     f"Use case: {use_case_text(doc, req, use_cases)}",
-                    f"Outcome: {req['outcome'] or 'Not documented'}", '',
-                    req['behavior'] or 'Behavior: Not documented', '',
-                    'Acceptance: ' + (req['acceptance'] or 'Not documented'), ''])
+                    f"Intended outcome: {req['outcome'] or 'Not documented'}", '',
+                    req['behavior'] or 'Requirement: Not documented', '',
+                    'Acceptance criteria: ' + (req['acceptance'] or 'Not documented'), ''])
             if not doc['sections'][key]:
                 lines.extend(['Not documented', ''])
     return '\n'.join(lines)
