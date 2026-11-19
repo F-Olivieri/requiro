@@ -27,7 +27,7 @@ const stageDescriptions = {Discover: 'Start with the people and the problem.', S
 const starterQuestions = {Discover: 'Who runs into this problem, and what are they unable to do today?', Scope: 'Which use case must work in the first version, and what can wait?', Requirements: 'For one use case, what should happen and how would we test that it worked?', Review: 'Which requirement or assumption is least clear, and what evidence would resolve it?'};
 const $ = selector => document.querySelector(selector);
 const clone = value => JSON.parse(JSON.stringify(value));
-const state = {docs: [], doc: null, saved: null, composeDrafts: {}, stage: 'Discover', view: 'document', useCasesContext: null, useCasesRequest: 0, verification: null, verificationRequest: 0, verificationLoading: false, verificationError: '', commentCounts: null, commentRequest: 0, pendingFocus: null, consent: storedConsent(), busy: false, proposal: null, proposalBaseline: null, pendingAction: null};
+const state = {docs: [], doc: null, saved: null, composeDrafts: {}, stage: 'Discover', view: 'document', useCasesContext: null, useCasesRequest: 0, verification: null, verificationRequest: 0, verificationLoading: false, verificationError: '', commentCounts: null, commentRequest: 0, pendingFocus: null, busy: false, proposal: null, proposalBaseline: null, pendingAction: null};
 let workspace = null;
 
 function el(tag, className, text) {
@@ -43,7 +43,7 @@ function hasUnsentCompose() {
   rememberCompose();
   return Object.values(state.composeDrafts).some(value => value.trim());
 }
-function editable() { return Boolean(state.doc && state.doc.status !== 'Archived' && state.consent && !state.busy); }
+function editable() { return Boolean(state.doc && state.doc.status !== 'Archived' && !state.busy); }
 function documented(value) { return !['', 'not documented', 'unknown', 'unresolved', 'tbd', 'tbc'].includes(value.trim().toLowerCase()); }
 const messageTimers = {};
 function message(text, options = {}) {
@@ -222,7 +222,7 @@ function confirmLeave() {
   if (!dirty()) return Promise.resolve(true);
   const dialog = $('#leave-dialog');
   inlineError('#leave-error');
-  $('#leave-save').disabled = !state.consent || state.doc.status === 'Archived';
+  $('#leave-save').disabled = state.doc.status === 'Archived';
   return new Promise(resolve => {
     const done = value => { $('#leave-save').onclick = $('#leave-discard').onclick = $('#leave-cancel').onclick = dialog.oncancel = null; dialog.close(); resolve(value); };
     $('#leave-cancel').onclick = () => done(false);
@@ -235,31 +235,6 @@ function confirmLeave() {
     dialog.showModal();
     $($('#leave-save').disabled ? '#leave-discard' : '#leave-save').focus();
   });
-}
-function storedConsent() {
-  try { return sessionStorage.getItem('requiro-consent') === 'confirmed'; } catch { return false; }
-}
-function renderConsent() {
-  $('#privacy-consent').checked = state.consent;
-  $('#privacy-banner').hidden = state.consent;
-  $('#privacy-indicator').hidden = !state.consent;
-  document.documentElement?.classList.toggle('consent-confirmed', state.consent);
-}
-function setConsent(value) {
-  state.consent = value;
-  try {
-    if (value) sessionStorage.setItem('requiro-consent', 'confirmed');
-    else sessionStorage.removeItem('requiro-consent');
-  } catch { /* Without session storage the confirmation lasts until the page reloads. */ }
-  renderConsent();
-  if (state.doc) renderEditor();
-  updateControls();
-}
-function requireConsent() {
-  if (state.consent) return true;
-  message('Acknowledge the data-use confirmation at the top of the page before creating, editing, importing, or preparing a handoff.');
-  $('#privacy-consent').focus();
-  return false;
 }
 async function api(path, method = 'GET', data) {
   const response = await fetch(path, {method, headers: data ? {'Content-Type': 'application/json'} : {}, body: data ? JSON.stringify(data) : undefined, credentials: 'same-origin'});
@@ -371,9 +346,8 @@ async function refreshCommentCounts() {
   if (state.view !== 'edit') renderPreview();
 }
 async function reviewDelivery(requirementId) {
-  if (dirty() && !requireConsent()) return;
   await save();
-  await openCompletion({doc: clone(state.saved), api, consent: () => state.consent, requirementId});
+  await openCompletion({doc: clone(state.saved), api, requirementId});
   await refreshVerification();
 }
 async function commentRequirement({requirementId, anchor, browse = false} = {}) {
@@ -384,7 +358,7 @@ async function commentRequirement({requirementId, anchor, browse = false} = {}) 
     $('#save-prd').focus();
     return;
   }
-  await openComments({doc: clone(state.saved), requirementId, anchor, browse, api, consent: () => state.consent});
+  await openComments({doc: clone(state.saved), requirementId, anchor, browse, api});
   await refreshCommentCounts();
 }
 async function changeReviewStatus(requirementId, {saveDraft = false} = {}) {
@@ -394,12 +368,11 @@ async function changeReviewStatus(requirementId, {saveDraft = false} = {}) {
       $('#save-prd').focus();
       return;
     }
-    if (!requireConsent()) return;
     await save();
   }
-  const result = await openRequirementStatus({doc: clone(state.saved), requirementId, api, consent: () => state.consent});
+  const result = await openRequirementStatus({doc: clone(state.saved), requirementId, api});
   if (result.updated) message(`${requirementId} marked ${result.status}.`, {kind: 'success'});
-  if (result.fullReview) await openCompletion({doc: clone(state.saved), requirementId, api, consent: () => state.consent});
+  if (result.fullReview) await openCompletion({doc: clone(state.saved), requirementId, api});
   await refreshVerification();
 }
 async function save() {
@@ -467,7 +440,7 @@ function updateControls() {
   $('#comments-prd').textContent = openThreads ? `Comments (${openThreads})` : 'Comments';
   for (const button of document.querySelectorAll('#doc-list button')) button.disabled = state.busy;
   for (const id of ['edit-tab', 'document-tab', 'table-tab']) $(`#${id}`).disabled = state.busy;
-  for (const button of document.querySelectorAll('#prd-visualization button')) button.disabled = state.busy || (button.dataset.editSection ? state.doc?.status === 'Archived' : changed && !state.consent) || button.dataset.commentSelection === 'true' && button.dataset.selectionValid !== 'true';
+  for (const button of document.querySelectorAll('#prd-visualization button')) button.disabled = state.busy || (button.dataset.editSection && state.doc?.status === 'Archived') || button.dataset.commentSelection === 'true' && button.dataset.selectionValid !== 'true';
   if (!hasDoc) {
     $('#copy-packet').disabled = true;
     $('#paste-response').disabled = true;
@@ -484,25 +457,25 @@ function updateControls() {
   $('#document-status').title = state.doc.status === 'Approved' && !changed ? `Approved v${state.saved.revision}. Edit and save to start a new draft.` : `${statusLabel(state.doc.status)} · ${changed ? `unsaved edits to v${state.saved.revision}` : `saved v${state.saved.revision}`}${state.doc.updatedAt ? ` · updated ${formatDate(state.doc.updatedAt)}` : ''}`;
   $('#export-prd').textContent = changed ? 'Export / recover ↓' : 'Export ↓';
   $('#history-prd').disabled = state.busy;
-  $('#verify-delivery').disabled = state.busy || (changed && !state.consent);
+  $('#verify-delivery').disabled = state.busy;
   $('#verify-delivery').textContent = changed ? 'Save + delivery review' : 'Delivery review';
   $('#export-prd').disabled = state.busy;
-  $('#archive-prd').disabled = !state.consent || state.busy || changed;
+  $('#archive-prd').disabled = state.busy || changed;
   $('#archive-prd').textContent = state.doc.status === 'Archived' ? 'Reopen' : 'Archive';
   $('#archive-prd').hidden = state.doc.status === 'Archived';
   const step = lifecycleStep(state.doc);
   const lifecycle = $('#lifecycle-action');
   lifecycle.hidden = !step;
   lifecycle.textContent = step?.label || '';
-  lifecycle.disabled = !state.consent || state.busy || changed;
-  lifecycle.title = changed ? 'Save your edits first.' : !state.consent ? 'Tick the data-use confirmation first.' : '';
+  lifecycle.disabled = state.busy || changed;
+  lifecycle.title = changed ? 'Save your edits first.' : '';
   $('#copy-packet').textContent = changed ? 'Save + copy for assistant ↗' : 'Copy for assistant ↗';
   $('#copy-packet').disabled = !canEdit;
   $('#paste-response').disabled = !canEdit;
   $('#chat-message').disabled = !canEdit;
   $('#use-starter').disabled = !canEdit;
   $('#clear-chat').disabled = !canEdit || !state.saved.chat?.length;
-  $('#handoff-state').textContent = state.doc.status === 'Archived' ? 'Reopen this PRD to continue the conversation.' : !state.consent ? 'Tick the data-use confirmation to use the assistant.' : changed ? 'Copy for assistant saves your edits first, so the assistant sees them.' : `The assistant sees saved v${state.doc.revision}. Its suggestions change nothing until you apply them.`;
+  $('#handoff-state').textContent = state.doc.status === 'Archived' ? 'Reopen this PRD to continue the conversation.' : changed ? 'Copy for assistant saves your edits first, so the assistant sees them.' : `The assistant sees saved v${state.doc.revision}. Its suggestions change nothing until you apply them.`;
   for (const input of document.querySelectorAll('#editor-content input, #editor-content textarea, #editor-content select, #editor-content button[data-edit]')) input.disabled = !canEdit;
   for (const button of document.querySelectorAll('[data-document-action]')) {
     const validStatus = button.dataset.documentAction === 'review' ? state.doc.status === 'Draft' : state.doc.status === 'In review';
@@ -725,7 +698,6 @@ function editSection(key) {
     $('#lifecycle-action').focus();
     return;
   }
-  if (!requireConsent()) return;
   message('');
   state.view = 'edit';
   setStage(stage);
@@ -814,7 +786,6 @@ function renderDocument() {
   updateControls();
 }
 function openNew() {
-  if (!requireConsent()) return;
   $('#new-title').value = '';
   inlineError('#new-error');
   $('#new-dialog').showModal();
@@ -822,13 +793,13 @@ function openNew() {
 }
 const actionMessages = {review: doc => `Sent for approval as v${doc.revision}.`, approve: doc => `Approved. Saved as v${doc.revision}.`, archive: doc => `Archived as v${doc.revision}.`, reopen: doc => `Reopened as draft v${doc.revision}.`, restore: (doc, revision) => `Restored v${revision} as draft v${doc.revision}.`};
 async function performAction(action, revision) {
-  if (!state.doc || !state.consent || dirty()) throw new Error('Save your edits before changing this PRD’s status.');
+  if (!state.doc || dirty()) throw new Error('Save your edits before changing this PRD’s status.');
   const doc = await api(`/api/prds/${encodeURIComponent(state.doc.id)}/action`, 'POST', {expectedRevision: state.doc.revision, action, revision});
   acceptSaved(doc);
   message(actionMessages[action](doc, revision), {kind: 'success'});
 }
 function openAction(action, revision) {
-  if (!state.doc || !state.consent || dirty()) { message('Save your edits before changing this PRD’s status.'); return; }
+  if (!state.doc || dirty()) { message('Save your edits before changing this PRD’s status.'); return; }
   if (action === 'restore' && state.doc.status === 'Archived') { message('Reopen this PRD before restoring a version.'); return; }
   const current = state.doc.revision, next = current + 1;
   const text = {
@@ -916,7 +887,7 @@ async function openHistory() {
       list.querySelectorAll('button').forEach(node => node.classList.toggle('active', node === button));
       const detail = $('#history-detail'); detail.replaceChildren(el('h3', '', doc.title), el('p', 'small muted', `v${doc.revision} · ${statusLabel(doc.status)}`));
       const restore = el('button', 'button', 'Restore as new draft');
-      restore.disabled = dirty() || !state.consent || state.doc.status === 'Archived';
+      restore.disabled = dirty() || state.doc.status === 'Archived';
       restore.addEventListener('click', () => { $('#history-dialog').close(); openAction('restore', doc.revision); });
       detail.append(restore);
       if (state.doc.status === 'Archived') detail.append(el('p', 'small muted', 'Reopen this PRD before restoring a version.'));
@@ -928,7 +899,7 @@ async function openHistory() {
   first?.focus();
 }
 async function copyPacket() {
-  if (!requireConsent() || !state.doc) return;
+  if (!state.doc) return;
   const request = $('#chat-message').value.trim();
   if (!request) { message('Write a question or use the starter question first.', {area: 'chat'}); $('#chat-message').focus(); return; }
   if ((state.saved.chat || []).length >= 99) throw new Error('This conversation is full. Choose Clear conversation to continue; the PRD content stays the same.');
@@ -1101,7 +1072,7 @@ function showReplyProblems(summary = '', issues = [], correctable = false) {
 }
 async function readResponse() {
   showReplyProblems();
-  if (!state.doc || state.doc.status === 'Archived' || !state.consent) { showReplyProblems('Open a PRD that is not archived and tick the data-use confirmation first.'); return; }
+  if (!state.doc || state.doc.status === 'Archived') { showReplyProblems('Open a PRD that is not archived first.'); return; }
   let result;
   try { result = validateResponse(parseReply($('#response-json').value), state.saved); } catch (error) {
     showReplyProblems(error.message, error.issues, error.correctable);
@@ -1213,7 +1184,7 @@ function openProposalReview() {
 }
 function applyProposal() {
   inlineError('#proposal-error');
-  if (!state.proposal || !editable()) { inlineError('#proposal-error', 'Tick the data-use confirmation, and reopen the PRD if it is archived, before applying changes.'); return; }
+  if (!state.proposal || !editable()) { inlineError('#proposal-error', 'Reopen the PRD if it is archived before applying changes.'); return; }
   if (state.proposal.documentId !== state.saved.id || state.proposal.baseRevision !== state.saved.revision) { inlineError('#proposal-error', `These suggestions were for v${state.proposal.baseRevision}, but this PRD is now saved as v${state.saved.revision}. Choose Copy for assistant again for fresh suggestions.`); return; }
   const selected = new Set([...$('#proposal-review').querySelectorAll('input[data-proposal-item]:checked')].map(node => node.dataset.proposalItem));
   const all = proposalItems();
@@ -1245,7 +1216,7 @@ function dismissProposal() {
   message('Suggestions discarded. The PRD did not change.', {area: 'chat', kind: 'success'});
 }
 function openClearChat() {
-  if (!state.doc || !requireConsent()) return;
+  if (!state.doc) return;
   const count = state.saved.chat?.length || 0;
   $('#clear-chat-description').textContent = `This removes ${count} message${count === 1 ? '' : 's'} from this PRD’s conversation. The PRD content, version (v${state.saved.revision}) and status stay the same.${state.proposal ? ' Suggested changes waiting for your check are kept.' : ''} To keep the messages, export the JSON first.`;
   inlineError('#clear-chat-error');
@@ -1279,7 +1250,7 @@ async function refreshLibrary() {
   renderLibrary();
 }
 async function manageConnections(withDocument) {
-  const result = await openConnections({doc: withDocument ? clone(state.saved) : null, docs: state.docs, api, consent: () => state.consent, hasUnsavedEdits: dirty()});
+  const result = await openConnections({doc: withDocument ? clone(state.saved) : null, docs: state.docs, api, hasUnsavedEdits: dirty()});
   if (result.doc) { acceptSaved(result.doc); message(`Imported requirements into new draft v${result.doc.revision}. Review their priorities and wording.`); }
   if (result.openDocumentId && await confirmLeave()) { acceptSaved(await api(`/api/prds/${encodeURIComponent(result.openDocumentId)}`)); offerRecovery(); }
   await refreshLibrary();
@@ -1288,9 +1259,6 @@ async function init() {
   trackDialogFocus();
   workspace = initWorkspaceControls();
   document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
-  renderConsent();
-  $('#privacy-consent').addEventListener('change', event => setConsent(event.target.checked));
-  $('#privacy-indicator').addEventListener('click', () => { setConsent(false); $('#privacy-consent').focus(); });
   $('#search').addEventListener('input', renderLibrary);
   $('#status-filter').addEventListener('change', renderLibrary);
   $('#project-filter').addEventListener('change', renderLibrary);
@@ -1302,10 +1270,10 @@ async function init() {
     event.preventDefault();
     let created = false;
     await run(async () => {
-      if (!requireConsent() || !(await confirmLeave())) return;
+      if (!(await confirmLeave())) return;
       const title = $('#new-title').value.trim();
       if (!title) throw new Error('Enter a title for this PRD.');
-      const doc = await api('/api/prds', 'POST', {title, privacyConfirmed: true});
+      const doc = await api('/api/prds', 'POST', {title});
       state.view = 'edit';
       acceptSaved(doc); $('#new-dialog').close(); message('Your PRD is ready. Start with the problem and who experiences it.');
       created = true;
@@ -1353,7 +1321,6 @@ async function init() {
   });
   window.addEventListener('pagehide', writeLocalDraft);
   $('#import-prd').addEventListener('click', () => {
-    if (!requireConsent()) return;
     $('#import-file').value = ''; $('#import-json').value = ''; inlineError('#import-error'); $('#import-dialog').showModal(); $('#import-file').focus();
   });
   $('#import-file').addEventListener('change', () => run(async () => {
@@ -1362,13 +1329,13 @@ async function init() {
     $('#import-json').value = await file.text();
   }, '#import-error'));
   $('#confirm-import').addEventListener('click', () => run(async () => {
-    if (!requireConsent() || !(await confirmLeave())) return;
+    if (!(await confirmLeave())) return;
     let doc; try { doc = JSON.parse($('#import-json').value); } catch { throw new Error('Paste or choose a valid Requiro JSON document.'); }
-    const imported = await api('/api/import', 'POST', {doc, privacyConfirmed: true});
+    const imported = await api('/api/import', 'POST', {doc});
     acceptSaved(imported); $('#import-dialog').close(); message('Imported as a separate draft. Existing documents were not changed.');
   }, '#import-error'));
   $('#demo-prd').addEventListener('click', () => run(async () => {
-    if (!requireConsent() || !(await confirmLeave())) return;
+    if (!(await confirmLeave())) return;
     const example = await api('/api/example');
     const existing = state.docs.find(item => item.title === example.title && item.status !== 'Archived');
     if (existing) {
@@ -1384,7 +1351,7 @@ async function init() {
       if (choice === 'open') { acceptSaved(await api(`/api/prds/${encodeURIComponent(existing.id)}`)); message('Opened the existing fictional example. No copy was created.'); offerRecovery(); return; }
       if (choice !== 'copy') return;
     }
-    const doc = await api('/api/import', 'POST', {doc: example, privacyConfirmed: true});
+    const doc = await api('/api/import', 'POST', {doc: example});
     acceptSaved(doc); message('Loaded a fictional example. Its assumptions, priorities, and open decisions are intentionally unresolved.');
   }));
   $('#welcome-example').addEventListener('click', () => $('#demo-prd').click());

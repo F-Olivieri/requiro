@@ -1,0 +1,62 @@
+[
+  {
+    "file": "test_comments.mjs",
+    "exitCode": 0,
+    "stdout": "Shared comments passed: UTF-16 selection and field boundaries, both views, suggestion-only posts/copy, concurrent refresh, draft guards, stale changes, resolved/reopened threads and removed requirement history.\n",
+    "stderr": ""
+  },
+  {
+    "file": "test_completion.mjs",
+    "exitCode": 0,
+    "stdout": "Completion UI self-check passed: owner/proof saves, explicit verdict, invalidation, unsaved close/switch guards, CAS conflict preservation, PRD separation, missing-content verdict gates (22 API calls).\n",
+    "stderr": ""
+  },
+  {
+    "file": "test_connections.mjs",
+    "exitCode": 0,
+    "stdout": "Project and requirement reuse UI passed: selection, provenance preview, conflicts, duplicate prevention, distinct legacy labels and unsaved-edit guards.\n",
+    "stderr": ""
+  },
+  {
+    "file": "test_format.mjs",
+    "exitCode": 0,
+    "stdout": "Format passed: local readable dates, empty fallbacks and ASCII filename slugs.\n",
+    "stderr": ""
+  },
+  {
+    "file": "test_lifecycle.mjs",
+    "exitCode": 0,
+    "stdout": "Lifecycle passed: status buttons, blockers vs advice, history labels, 3-way leave, undo removal, local draft recovery, Ctrl/Cmd+S, export copy and confirmations, status confirmation, message clearing, new-PRD focus, comment counts and dialog focus return.\n",
+    "stderr": ""
+  },
+  {
+    "file": "test_prd_views.mjs",
+    "exitCode": 0,
+    "stdout": "PRD views passed: shared data, full text and metadata, safe text, review links, draft/revision gates and empty state.\n",
+    "stderr": ""
+  },
+  {
+    "file": "test_requirement_status.mjs",
+    "exitCode": 0,
+    "stdout": "Requirement status chooser passed: options, proof/reviewer gates, CAS, discussion, full review, conflicts and draft protection.\n",
+    "stderr": ""
+  },
+  {
+    "file": "test_ui.mjs",
+    "exitCode": 0,
+    "stdout": "Frontend validation, saved metadata badges, combined filters, shared-record views, scoped unsent-chat protection, truthful print labels, archived restore guards and comment integration passed.\n",
+    "stderr": ""
+  },
+  {
+    "file": "test_use_cases.mjs",
+    "exitCode": 0,
+    "stdout": "Use cases passed: shared parsing, readable choices, source context, ambiguity, custom scope and unchanged saved references.\n",
+    "stderr": ""
+  },
+  {
+    "file": "test_workspace_controls.mjs",
+    "exitCode": 0,
+    "stdout": "Workspace controls passed: accessible icon labels, independent panels, settings, retained content, reload preferences, blocked-storage fallback, narrow-screen panels, the More menu and no data-use confirmation.\n",
+    "stderr": ""
+  }
+]

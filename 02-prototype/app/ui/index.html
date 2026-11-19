@@ -16,9 +16,6 @@
 </head>
 <body>
   <a class="skip-link" href="#workspace">Skip to workspace</a>
-  <div id="privacy-banner" class="privacy-banner" role="group" aria-label="Data-use confirmation">
-    <label title="I will use only synthetic or approved nonconfidential material, with no real employer, customer, personal, or account information."><input id="privacy-consent" type="checkbox"><strong>Data-use confirmation</strong><span>I will use only synthetic or approved nonconfidential material, with no real employer, customer, personal, or account information.</span></label>
-  </div>
   <div class="app-shell">
     <aside id="library-panel" class="library" aria-label="PRD library">
       <div class="library-top"><a class="brand" href="/" aria-label="Requiro home"><img class="brand-mark" src="/logo.svg" alt="" width="24" height="24"><span>requiro<span class="brand-dot">.</span></span></a><button id="new-prd" class="button primary"><span aria-hidden="true">＋</span> New PRD</button></div>
@@ -63,7 +60,6 @@
           </div>
         </div>
         <div class="workspace-tools" role="group" aria-label="Workspace display">
-          <button id="privacy-indicator" class="icon-button privacy-indicator" type="button" aria-label="Data-use confirmation given. Select to withdraw it." title="Data-use confirmation given. Select to withdraw it." hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.4 3 8.3 7 10 4-1.7 7-5.6 7-10V6Z"/><path d="m9 12 2 2 4-4"/></svg></button>
           <button id="open-settings" class="icon-button" aria-label="Settings" title="Settings" aria-haspopup="dialog" aria-controls="settings-dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 3-.6 2.1-1.8 1L5.4 5.6l-2 3.4 1.6 1.6v2.1L3.4 14l2 3.4 2.2-.5 1.8 1L10 20h4l.6-2.1 1.8-1 2.2.5 2-3.4-1.6-1.3v-2.1L20.6 9l-2-3.4-2.2.5-1.8-1L14 3Z"/><circle cx="12" cy="11.5" r="3"/></svg></button>
         </div>
         <div id="phone-view-slot" class="phone-view-slot"></div>
@@ -101,7 +97,7 @@
         <button id="copy-packet" class="button primary full">Copy for assistant <span aria-hidden="true">↗</span></button>
         <button id="paste-response" class="button full">Paste assistant reply</button>
         <div id="chat-status" class="chat-status" role="status" hidden></div>
-        <p id="handoff-state" class="small muted">Open a PRD and tick the data-use confirmation to start.</p>
+        <p id="handoff-state" class="small muted">Open a PRD to start.</p>
       </div>
     </aside>
   </div>

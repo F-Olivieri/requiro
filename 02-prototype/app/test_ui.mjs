@@ -153,7 +153,6 @@ context.document.querySelector = selector => {
 context.renderStageNav = context.renderEditor = context.renderStageFooter = () => {};
 const shortcutDraft = vm.runInContext('JSON.stringify(state.doc)', context);
 const shortcutSaved = vm.runInContext('JSON.stringify(state.saved)', context);
-vm.runInContext('state.consent = true;', context);
 for (const [stage, sectionKeys] of Object.entries({Discover: ['problem', 'users', 'outcomes'], Scope: ['useCases', 'scope', 'nonGoals', 'inputsOutputs'], Requirements: ['quality'], Review: ['metrics', 'risks', 'decisions', 'evidence']})) {
   for (const key of sectionKeys) {
     vm.runInContext('state.view = "document"; renderPreview();', context);
@@ -166,13 +165,12 @@ for (const [stage, sectionKeys] of Object.entries({Discover: ['problem', 'users'
   }
 }
 visualizationButtons.push({dataset: {editSection: 'problem'}}, {dataset: {}});
-vm.runInContext('state.view = "table"; state.consent = false; updateControls(); editSection("problem");', context);
-assert.equal(vm.runInContext('state.view', context), 'table');
-assert.equal(focused, '#privacy-consent');
-assert.ok(controls.get('#global-message').textContent.includes('Acknowledge'));
-assert.equal(visualizationButtons[0].disabled, false, 'Edit stays available to explain the acknowledgement gate.');
-assert.equal(visualizationButtons[1].disabled, true, 'Existing dirty-draft review controls keep their gate.');
-vm.runInContext('state.consent = true; state.doc.status = "Archived"; updateControls(); editSection("problem");', context);
+vm.runInContext('state.view = "table"; updateControls(); editSection("problem");', context);
+assert.equal(vm.runInContext('state.view', context), 'edit', 'R-054: Edit opens without a confirmation.');
+assert.equal(focused, '#field-problem');
+assert.equal(visualizationButtons[0].disabled, false);
+assert.equal(visualizationButtons[1].disabled, false, 'Review controls need no confirmation.');
+vm.runInContext('state.view = "table"; state.doc.status = "Archived"; updateControls(); editSection("problem");', context);
 assert.equal(visualizationButtons[0].disabled, true);
 assert.equal(focused, '#lifecycle-action');
 assert.ok(controls.get('#global-message').textContent.includes('Reopen'));
@@ -199,7 +197,7 @@ pendingReviews[0]({documentId: doc.id, prdRevision: doc.revision, items: [{statu
 await olderLoad;
 assert.equal(vm.runInContext('state.verification.items[0].status', context), 'To discuss');
 
-// The shared review action must preserve a dirty draft when acknowledgement is removed.
+// The shared review action saves a dirty draft before opening the review.
 let saves = 0;
 let reviewTarget;
 let acknowledgement = '';
@@ -207,14 +205,7 @@ context.save = async () => { saves++; };
 context.openCompletion = async options => { reviewTarget = options.requirementId; };
 context.refreshVerification = async () => {};
 context.message = value => { acknowledgement = value; };
-context.document.querySelector('#privacy-consent').focus = () => {};
-vm.runInContext('state.consent = false;', context);
-await vm.runInContext('reviewDelivery("R-001")', context);
-assert.equal(saves, 0);
-assert.equal(reviewTarget, undefined);
-assert.ok(acknowledgement.includes('Acknowledge'));
 assert.equal(vm.runInContext('state.doc.sections.requirements[0].behavior', context), 'Unsaved draft behavior');
-vm.runInContext('state.consent = true;', context);
 await vm.runInContext('reviewDelivery("R-001")', context);
 assert.equal(saves, 1);
 assert.equal(reviewTarget, 'R-001');
@@ -229,10 +220,6 @@ assert.ok(acknowledgement.includes('Save your draft'));
 await vm.runInContext('changeReviewStatus("R-001", {saveDraft:true})', context);
 assert.equal(statusChoosers, 1, 'The explicit Save + change action opens the status chooser.');
 assert.equal(saves, 2);
-vm.runInContext('state.consent = false;', context);
-await vm.runInContext('changeReviewStatus("R-001", {saveDraft:true})', context);
-assert.equal(saves, 2, 'The new action keeps the existing material-use guard.');
-assert.equal(statusChoosers, 1);
 
 // Library badges and filters read saved metadata, including nondefault values.
 class LibraryNode {
@@ -282,7 +269,7 @@ composeContext.initWorkspaceControls = () => {};
 vm.runInContext('updateSummary=()=>{}; renderStageNav=()=>{}; renderEditor=()=>{}; renderStageFooter=()=>{}; renderPreview=()=>{}; renderConversation=()=>{}; renderProposal=()=>{}; updateControls=()=>{}; refreshVerification=()=>{}; refreshUseCases=()=>{}; refreshLibrary=async()=>{}; message=()=>{};', composeContext);
 const composeFixture = {...structuredClone(doc), stage: 'Discover', chat: []};
 composeContext.fixture = composeFixture;
-vm.runInContext('state.doc=clone(fixture); state.saved=clone(fixture); state.consent=true;', composeContext);
+vm.runInContext('state.doc=clone(fixture); state.saved=clone(fixture);', composeContext);
 const compose = composeContext.document.querySelector('#chat-message');
 const puts = [];
 let packetFails = false;
@@ -419,7 +406,7 @@ historyContext.document = {
 };
 historyContext.historical = structuredClone(approvedPrintFixture);
 historyContext.api = async path => path.endsWith('/history') ? [{revision: 20, status: 'Approved'}] : structuredClone(approvedPrintFixture);
-vm.runInContext('updateControls=()=>{}; state.doc={...clone(historical),status:"Archived",revision:21}; state.saved=clone(state.doc); state.consent=true;', historyContext);
+vm.runInContext('updateControls=()=>{}; state.doc={...clone(historical),status:"Archived",revision:21}; state.saved=clone(state.doc);', historyContext);
 async function inspectHistory() {
   await vm.runInContext('openHistory()', historyContext);
   await historyControls.get('#history-list').querySelectorAll('button')[0].click();
@@ -442,8 +429,8 @@ assert.equal(vm.runInContext('state.pendingAction.action', historyContext), 'res
 assert.equal(vm.runInContext('state.pendingAction.revision', historyContext), 20);
 vm.runInContext('state.doc.title="Unsaved history change";', historyContext);
 assert.equal((await inspectHistory()).disabled, true, 'The existing unsaved-edit restore guard must remain.');
-vm.runInContext('state.doc=clone(state.saved); state.consent=false;', historyContext);
-assert.equal((await inspectHistory()).disabled, true, 'The existing acknowledgement guard must remain.');
+vm.runInContext('state.doc=clone(state.saved);', historyContext);
+assert.equal((await inspectHistory()).disabled, false, 'R-054: restore needs no confirmation.');
 
 // Comments use saved wording while leaving unrelated PRD edits untouched.
 const commentCalls = [];
@@ -451,7 +438,7 @@ historyContext.openComments = async options => commentCalls.push(options);
 historyContext.renderPrdView = () => {};
 historyContext.document.querySelector('#save-prd').focus = () => {};
 historyContext.commentAnchor = {field: 'behavior', start: 0, end: 6, quote: 'Browse', sourceText: approvedPrintFixture.sections.requirements[0].behavior};
-vm.runInContext('state.doc=clone(historical); state.saved=clone(historical); state.doc.title="Unsaved comment context"; state.consent=true;', historyContext);
+vm.runInContext('state.doc=clone(historical); state.saved=clone(historical); state.doc.title="Unsaved comment context";', historyContext);
 const commentDraftBefore = vm.runInContext('JSON.stringify(state.doc)', historyContext);
 await vm.runInContext('commentRequirement({requirementId:"R-001",anchor:commentAnchor})', historyContext);
 assert.equal(commentCalls.length, 0, 'A new anchored comment must wait until requirement edits are saved.');

@@ -14,7 +14,7 @@ export function projectLabel(project, projects) {
   return projects.filter(item => item.name.trim().toLocaleLowerCase() === name).length > 1 ? `${project.name} (${project.id})` : project.name;
 }
 
-export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}) {
+export async function openConnections({doc, docs, api, hasUnsavedEdits}) {
   const [{projects}, memberships, relationships] = await Promise.all([
     api('/api/projects'),
     doc ? api(`${prdPath(doc.id)}/projects`) : {projectIds: []},
@@ -34,7 +34,7 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
   const notice = el('p', 'inline-error'); notice.hidden = true; notice.setAttribute('role', 'alert');
   dialog.append(heading);
   if (doc) dialog.append(el('p', 'muted', `${doc.title} · v${doc.revision}`));
-  const hint = el('p', 'field-hint', consent() ? 'Changes stay in this local workspace.' : 'Tick the data-use confirmation before making changes.');
+  const hint = el('p', 'field-hint', 'Changes stay in this local workspace.');
   dialog.append(hint, notice);
   function section(name) {
     const section = el('section', 'connections-section'); section.append(el('h3', '', name)); dialog.append(section); return section;
@@ -122,7 +122,7 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
       const requirementIds = [...choices.querySelectorAll('input:checked')].map(input => input.value);
       if (!canImport() || !sourceDoc || !requirementIds.length) return;
       if (!allowDiscard()) return;
-      const imported = await api(`${prdPath(doc.id)}/import-requirements`, 'POST', {expectedRevision: doc.revision, sourceDocumentId: sourceDoc.id, sourceRevision: sourceDoc.revision, requirementIds, privacyConfirmed: true});
+      const imported = await api(`${prdPath(doc.id)}/import-requirements`, 'POST', {expectedRevision: doc.revision, sourceDocumentId: sourceDoc.id, sourceRevision: sourceDoc.revision, requirementIds});
       result.doc = imported.doc; dialog.close();
     }));
   }
@@ -130,11 +130,11 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
   const projectDirty = () => Boolean(doc && JSON.stringify(selectedProjects()) !== JSON.stringify([...projectIds].sort()));
   const allowDiscard = () => !projectDirty() || window.confirm('Discard unsaved project selections? Saved links will remain.');
   function showError(error) { notice.textContent = error.message; notice.hidden = false; }
-  function canImport() { return Boolean(doc && doc.status !== 'Archived' && consent() && !hasUnsavedEdits); }
+  function canImport() { return Boolean(doc && doc.status !== 'Archived' && !hasUnsavedEdits); }
   function controls() {
     for (const button of dialog.querySelectorAll('button')) button.disabled = busy;
-    for (const input of [...projectList.querySelectorAll('input'), name]) input.disabled = busy || !consent();
-    create.disabled = projectSave.disabled = busy || !consent();
+    for (const input of [...projectList.querySelectorAll('input'), name]) input.disabled = busy;
+    create.disabled = projectSave.disabled = busy;
     source.disabled = busy || !canImport();
     for (const input of choices.querySelectorAll('input')) input.disabled = busy || !canImport() || input.dataset.imported === 'true';
     importButton.disabled = busy || !canImport() || !sourceDoc || !choices.querySelector('input:checked');
@@ -146,15 +146,14 @@ export async function openConnections({doc, docs, api, consent, hasUnsavedEdits}
     finally { busy = false; controls(); }
   }
   projectSave.addEventListener('click', () => perform(async () => {
-    if (!consent()) return;
-    const saved = await api(`${prdPath(doc.id)}/projects`, 'PUT', {expectedProjectIds: projectIds, projectIds: selectedProjects(), privacyConfirmed: true});
+    const saved = await api(`${prdPath(doc.id)}/projects`, 'PUT', {expectedProjectIds: projectIds, projectIds: selectedProjects()});
     projectIds = saved.projectIds; renderProjects(); hint.textContent = 'Project links saved.';
   }));
   createForm.addEventListener('submit', event => {
     event.preventDefault();
     perform(async () => {
-      if (!consent() || !name.value.trim()) return;
-      const project = await api('/api/projects', 'POST', {name: name.value.trim(), privacyConfirmed: true});
+      if (!name.value.trim()) return;
+      const project = await api('/api/projects', 'POST', {name: name.value.trim()});
       const selected = selectedProjects();
       projects.push(project); renderProjects();
       for (const input of projectList.querySelectorAll('input')) input.checked = selected.includes(input.value) || input.value === project.id;

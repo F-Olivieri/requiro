@@ -13,7 +13,7 @@ class LifecycleMessagesTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.store = Store(self.tmp.name)
-        self.doc = self.store.create('Fictional lending shelf', True)
+        self.doc = self.store.create('Fictional lending shelf')
 
     def tearDown(self):
         self.tmp.cleanup()

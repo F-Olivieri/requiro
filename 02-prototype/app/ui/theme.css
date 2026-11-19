@@ -99,10 +99,8 @@
   :root[data-theme="dark"] .review-checklist li.missing .check-icon,
   :root[data-theme="dark"] .action-warnings { color:#efcb8f }
 
-  :root[data-theme="dark"] .privacy-banner,
   :root[data-theme="dark"] .message,
   :root[data-theme="dark"] .proposal { background:#201a2d; border-color:#493b61; color:#d6c4ef }
-  :root[data-theme="dark"] .workspace-tools .privacy-indicator { color:var(--green) }
   :root[data-theme="dark"] .skip-link { background:#7352c3 }
   :root[data-theme="dark"] .menu { background:#191b22; box-shadow:0 12px 32px #000a }
   :root[data-theme="dark"] .menu-item:hover,

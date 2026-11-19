@@ -159,14 +159,14 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(body, dict):
             raise InputError('Request must be a JSON object.')
         if self.command == 'POST' and path == '/api/prds':
-            return self.reply(201, store.create(body.get('title'), body.get('privacyConfirmed')))
+            return self.reply(201, store.create(body.get('title')))
         if self.command == 'POST' and path == '/api/projects':
-            return self.reply(201, store.create_project(body.get('name'), body.get('privacyConfirmed')))
+            return self.reply(201, store.create_project(body.get('name')))
         if self.command == 'POST' and path == '/api/import':
             doc = body.get('doc')
             if not isinstance(doc, dict):
                 raise InputError('Select an exported PRD JSON file.')
-            return self.reply(201, store.create(doc.get('title'), body.get('privacyConfirmed'), doc))
+            return self.reply(201, store.create(doc.get('title'), doc))
         if parts[:2] == ['api', 'prds'] and len(parts) in (5, 6, 7) and parts[3] == 'comments':
             if self.command == 'POST' and len(parts) == 5:
                 return self.reply(201, self.server.comments.create(parts[2], parts[4], body))
@@ -186,8 +186,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, store.link_projects(document_id, body.get('expectedProjectIds'), body.get('projectIds')))
             if self.command == 'POST' and len(parts) == 4 and parts[3] == 'import-requirements':
                 return self.reply(200, store.import_requirements(document_id, expected, body.get('sourceDocumentId'),
-                                                               body.get('sourceRevision'), body.get('requirementIds'),
-                                                               body.get('privacyConfirmed')))
+                                                               body.get('sourceRevision'), body.get('requirementIds')))
             if self.command == 'PUT' and len(parts) == 3:
                 return self.reply(200, store.mutate(document_id, expected, candidate=body.get('doc')))
             if self.command == 'POST' and len(parts) == 4 and parts[3] == 'action':

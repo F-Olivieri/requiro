@@ -10,8 +10,6 @@ ANCHOR_FIELDS = ('behavior', 'acceptance', 'appliesTo', 'outcome')
 
 
 def author_label(body):
-    if body.get('privacyConfirmed') is not True:
-        raise InputError('Confirm that the discussion contains only synthetic or approved nonconfidential material.')
     author = text(body.get('author'), 'Author label', 200).strip()
     if not author:
         raise InputError('Add an author label. Labels do not verify identity.')

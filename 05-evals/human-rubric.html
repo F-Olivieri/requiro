@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Requiro — Human Evaluation Rubric</title>
+<style>
+* { box-sizing: border-box; }
+body { max-width: 780px; margin: 48px auto; padding: 0 24px; color: #202020; background: #fff; font: 17px/1.55 system-ui, sans-serif; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 8px; }
+h2 { font-size: 21px; margin: 32px 0 12px; }
+h3 { font-size: 17px; margin: 24px 0 8px; }
+p { margin: 8px 0; }
+.subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+ol, ul { padding-left: 24px; margin: 8px 0; }
+li { margin: 5px 0; }
+@media (max-width:600px) { body { margin: 28px auto; padding: 0 18px; } }
+@media print { body { max-width: none; margin: 0; font-size: 11pt; } h1 { font-size: 20pt; } h2, h3 { break-after: avoid; } article { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Requiro — Human Evaluation Rubric</h1>
+<p class="subtitle">The review schedule is planned; reviewers have not yet scored a shared sample.</p>
+
+<h2>What the reviewer scores</h2>
+<p>One complete Requiro reply that drafts or revises requirements in a product requirements document (PRD).</p>
+<p><strong>Its job:</strong> turn the product manager’s need into clear, testable requirements without inventing facts or making decisions for that person.</p>
+<p>Compare the complete reply with the request and the current PRD supplied to the assistant. If that review context is missing, mark the reply <strong>Not scorable</strong> and obtain the missing context before scoring it. Review a reply that only asks a question, or correctly refuses a request, separately; it does not fail for lacking a draft.</p>
+
+<h2>Scoring criteria</h2>
+<article class="criterion">
+<h3>1. Faithfulness to the request · Yes / No</h3>
+<p>Does the reply preserve the requested users, behavior, scope, and constraints?</p>
+<p><strong>Yes:</strong> preserves them and leaves unrelated requirements unchanged. Extra ideas are labeled as proposals.<br><strong>No:</strong> omits, contradicts, or silently changes any of them.</p>
+</article>
+
+<article class="criterion">
+<h3>2. Grounding in supplied evidence · Yes / No</h3>
+<p>Are facts and commitments supported by the supplied context?</p>
+<p><strong>Yes:</strong> claims match the evidence; unknowns remain explicit and suggestions are labeled Proposed.<br><strong>No:</strong> invents or misrepresents evidence, targets, owners, deadlines, or approvals.</p>
+</article>
+
+<article class="criterion">
+<h3>3. Clarity and testability · 1–5</h3>
+<p>Could a product manager and engineer agree on what to build and how to check it?</p>
+<ol class="anchors">
+<li>No observable behavior or acceptance check.</li>
+<li>Intent is recognizable, but essential behavior or acceptance is vague or missing.</li>
+<li>The main behavior can be checked, but an important condition still has more than one meaning.</li>
+<li>The known behavior and its acceptance criteria are clear; specific questions identify the unresolved details.</li>
+<li>All decisions needed to accept the work are resolved, including what should happen in relevant failure cases.</li>
+</ol>
+<p>Inventing a target does not earn a higher score. A clearly stated unknown can earn 4.</p>
+</article>
+
+<article class="criterion">
+<h3>4. Usefulness · 1–5</h3>
+<p>How much editing does the product manager need before the draft is ready for review?</p>
+<ol class="anchors">
+<li>Discard it and restart.</li>
+<li>Substantial rewrite.</li>
+<li>Useful starting point, but needs a material correction.</li>
+<li>Minor wording edits; changes and open decisions are easy to find.</li>
+<li>Ready for review as written; the next decision is clear.</li>
+</ol>
+</article>
+
+<h2>Planned reviews and agreement on scores</h2>
+<ul>
+<li><strong>Planned sample:</strong> five drafting responses each week, covering routine requests, missing information, and revisions.</li>
+<li><strong>Planned reviewers:</strong> the product owner and one engineer score the same responses independently. Each score includes a quote and a short reason.</li>
+<li><strong>Disagreements:</strong> compare the quoted evidence with the score definitions and record the agreed score. If the disagreement remains, leave the result pending, clarify the requirement, and score it again.</li>
+</ul>
+
+<h2>Minimum scores for a pass</h2>
+<p><strong>Pass:</strong> Yes on faithfulness and grounding, and at least 4 on both scales.</p>
+<p><strong>Automatic fail:</strong> an invented fact or commitment, restricted information disclosed, or an unauthorized action or false claim of saving, testing, or approval.</p>
+<p>Correct a failed reply and review it again. PRD approval and review of implemented work remain separate human decisions.</p>
+<h2>Evaluation status</h2>
+<p>The product owner and an engineer have not yet scored a shared sample. No model-output evaluation or real-world impact study has been completed for Requiro. Automated application checks are reported separately; they exercise workspace behavior and do not score assistant replies.</p>
+</main>
+</body>
+</html>

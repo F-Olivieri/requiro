@@ -258,9 +258,7 @@ class Store:
             return {'projects': [{'id': row[0], 'name': row[1]} for row in
                                  db.execute('SELECT id, name FROM projects ORDER BY name COLLATE NOCASE, id')]}
 
-    def create_project(self, name, confirmed=False):
-        if confirmed is not True:
-            raise InputError('Confirm that project material is synthetic or approved nonconfidential course material.')
+    def create_project(self, name):
         name = text(name, 'Project name', 200).strip()
         if not name:
             raise InputError('Give the project a name.')
@@ -378,9 +376,7 @@ class Store:
         with self.connection() as db:
             return self._relationships(db, document_id)
 
-    def import_requirements(self, document_id, expected, source_id, source_revision, requirement_ids, confirmed=False):
-        if confirmed is not True:
-            raise InputError('Confirm that imported material is synthetic or approved nonconfidential course material.')
+    def import_requirements(self, document_id, expected, source_id, source_revision, requirement_ids):
         if type(expected) is not int or type(source_revision) is not int:
             raise InputError('Numeric expectedRevision and sourceRevision are required.')
         if not isinstance(source_id, str) or source_id == document_id:
@@ -427,9 +423,7 @@ class Store:
                 db.rollback()
                 raise
 
-    def create(self, title, confirmed=False, imported=None):
-        if confirmed is not True:
-            raise InputError('Confirm that the material is synthetic or approved nonconfidential course material, free of real employer, customer, personal, and account information.')
+    def create(self, title, imported=None):
         title = text(title, 'Title', 200).strip()
         if not title:
             raise InputError('Give the PRD a title.')

@@ -72,11 +72,11 @@ const complete = {id: 'fictional-doc', title: 'Fictional lending shelf', revisio
     requirements: ['R-001', 'R-002'].map(id => ({id, priority: 'Must', proposed: false, behavior: `Show ${id}.`, appliesTo: 'UC-01', outcome: 'Members borrow a tool.', acceptance: `${id} appears.`}))}};
 function load(changes = {}, sections = {}) {
   ctx.fixture = {...structuredClone(complete), ...changes, sections: {...structuredClone(complete.sections), ...sections}};
-  run('state.doc=clone(fixture); state.saved=clone(fixture); state.consent=true; state.busy=false; state.pendingAction=null; removed.length=0;');
+  run('state.doc=clone(fixture); state.saved=clone(fixture); state.busy=false; state.pendingAction=null; removed.length=0;');
 }
 await run('init()');
 
-// R-042: one lifecycle button per status, gated by consent and unsaved edits.
+// R-042: one lifecycle button per status, gated by unsaved edits.
 for (const [status, label] of [['Draft', 'Send for approval'], ['In review', 'Approve v3'], ['Archived', 'Reopen']]) {
   load({status}); run('updateControls()');
   assert.equal($('#lifecycle-action').hidden, false, `${status} offers its next step.`);
@@ -90,8 +90,9 @@ assert.equal($('#document-status').title, 'Approved v3. Edit and save to start a
 assert.equal($('#archive-prd').hidden, false);
 load(); run('state.doc.title="Unsaved fictional title"; updateControls();');
 assert.equal($('#lifecycle-action').disabled, true); assert.equal($('#lifecycle-action').title, 'Save your edits first.');
-load(); run('state.consent=false; updateControls();');
-assert.equal($('#lifecycle-action').disabled, true); assert.match($('#lifecycle-action').title, /data-use confirmation/);
+load(); run('updateControls();');
+assert.equal($('#lifecycle-action').disabled, false); assert.equal($('#lifecycle-action').title, '', 'R-054: no confirmation is needed before a status change.');
+assert.equal($('#archive-prd').disabled, false);
 
 // R-042: Send for approval runs directly; Approve opens a checked confirmation.
 load(); run('updateControls()'); calls.length = 0;
@@ -154,7 +155,7 @@ saveFails = false; await $('#leave-save').click();
 assert.equal(await leaving, true); assert.equal($('#leave-dialog').open, false);
 assert.equal(calls.filter(call => call.method === 'PUT').length, 2);
 assert.equal(run('dirty()'), false); assert.equal(run('state.saved.sections.problem'), 'Unsaved fictional problem');
-load(); run('state.consent=false; state.doc.title="Unsaved without consent";');
+load({status: 'Archived'}); run('state.doc.title="Unsaved archived title";');
 leaving = run('confirmLeave()');
 assert.equal($('#leave-save').disabled, true); assert.equal(ctx.focused, $('#leave-discard'));
 await $('#leave-cancel').click(); await leaving;
@@ -221,10 +222,10 @@ load(); calls.length = 0;
 assert.equal(press({ctrlKey: true}), true, 'The browser save dialog is suppressed while a PRD is open.');
 run('state.doc.title="Dialog fictional title";'); openDialog = new Node('dialog');
 press({ctrlKey: true}); openDialog = null;
-run('state.consent=false;'); press({metaKey: true});
+run('state.doc.status="Archived";'); press({metaKey: true});
 assert.equal(press({ctrlKey: true, altKey: true}), false);
 await new Promise(resolve => setImmediate(resolve));
-assert.equal(calls.length, 0, 'No save when clean, when a dialog is open, or without the data-use confirmation.');
+assert.equal(calls.length, 0, 'No save when clean, when a dialog is open, or when the PRD is archived.');
 run('state.doc=null;'); assert.equal(press({ctrlKey: true}), false, 'Without a PRD the browser keeps its own shortcut.');
 
 // R-048: export says what each format includes and leaves out.

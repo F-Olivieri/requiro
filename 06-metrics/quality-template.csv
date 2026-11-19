@@ -1,0 +1,1 @@
+case_id,attempt,assistant_model_version,prompt_revision,document_revision,response_file,reviewer,review_stage,faithfulness_yes_no,grounding_yes_no,clarity_1_to_5,usefulness_1_to_5,critical_failure,pass_yes_no,evidence_quote,reason

@@ -25,7 +25,7 @@ class ProjectReuseTests(unittest.TestCase):
         self.target = self.create('Fictional destination', [fixtures.requirement(1)])
 
     def create(self, title, requirements):
-        doc = self.store.create(title, True)
+        doc = self.store.create(title)
         doc['sections']['requirements'] = requirements
         return self.store.mutate(doc['id'], doc['revision'], candidate=doc)
 
@@ -37,13 +37,13 @@ class ProjectReuseTests(unittest.TestCase):
     def import_selected(self, **changes):
         args = dict(document_id=self.target['id'], expected=self.target['revision'],
                     source_id=self.source['id'], source_revision=self.source['revision'],
-                    requirement_ids=['R-002'], confirmed=True)
+                    requirement_ids=['R-002'])
         args.update(changes)
         return self.store.import_requirements(**args)
 
     def test_many_to_many_memberships_do_not_revise_documents_and_survive_reopen(self):
-        first = self.store.create_project('Fictional release', True)
-        second = self.store.create_project('Fictional exploration', True)
+        first = self.store.create_project('Fictional release')
+        second = self.store.create_project('Fictional exploration')
         before = self.store.get(self.target['id'])
         history = self.store.history(self.target['id'])
         ids = [first['id'], second['id']]
@@ -61,18 +61,18 @@ class ProjectReuseTests(unittest.TestCase):
 
     # 2026-11-09: repeated project labels must not create indistinguishable choices.
     def test_duplicate_project_names_are_rejected_without_changing_legacy_records(self):
-        project = self.store.create_project('Fictional garden', True)
+        project = self.store.create_project('Fictional garden')
         self.store.link_projects(self.target['id'], [], [project['id']])
         before = self.store.get(self.target['id'])
         for duplicate in ('Fictional garden', '  fictional GARDEN  '):
-            self.rejected(422, lambda: self.store.create_project(duplicate, True))
-        self.store.create_project('Fictional workshop', True)
-        self.store.create_project('Fictional Straße', True)
-        self.rejected(422, lambda: self.store.create_project('Fictional STRASSE', True))
+            self.rejected(422, lambda: self.store.create_project(duplicate))
+        self.store.create_project('Fictional workshop')
+        self.store.create_project('Fictional Straße')
+        self.rejected(422, lambda: self.store.create_project('Fictional STRASSE'))
         with self.store.connection() as db:
             db.execute('INSERT INTO projects VALUES (?,?)', ('legacy-duplicate', 'Fictional garden'))
         legacy = self.store.projects()
-        self.rejected(422, lambda: self.store.create_project('Fictional garden', True))
+        self.rejected(422, lambda: self.store.create_project('Fictional garden'))
         self.assertEqual(self.store.projects(), legacy, 'Existing duplicates must not be merged or deleted.')
         self.assertEqual(self.store.document_projects(self.target['id'])['projectIds'], [project['id']])
         self.assertEqual(self.store.get(self.target['id']), before)
@@ -82,7 +82,7 @@ class ProjectReuseTests(unittest.TestCase):
         def create():
             ready.wait(timeout=5)
             try:
-                return self.store.create_project('Fictional concurrent project', True)
+                return self.store.create_project('Fictional concurrent project')
             except InputError as error:
                 return error.status
         with ThreadPoolExecutor(max_workers=2) as pool:
@@ -92,15 +92,15 @@ class ProjectReuseTests(unittest.TestCase):
         self.assertEqual(len(self.store.projects()['projects']), 1)
 
     def test_memberships_reject_concurrent_changes_unknown_ids_and_invalid_payloads(self):
-        project = self.store.create_project('Fictional release', True)
+        project = self.store.create_project('Fictional release')
         self.store.link_projects(self.target['id'], [], [project['id']])
         self.rejected(409, lambda: self.store.link_projects(self.target['id'], [], []))
         self.rejected(404, lambda: self.store.link_projects(self.target['id'], [project['id']], ['missing']))
         for value in (None, 'all', [1], [project['id'], project['id']]):
             self.rejected(422, lambda: self.store.link_projects(self.target['id'], [project['id']], value))
         self.assertEqual(self.store.document_projects(self.target['id'])['projectIds'], [project['id']])
-        for name, confirmed in [('', True), ('Fictional', False), ('Fictional', 1)]:
-            self.rejected(422, lambda: self.store.create_project(name, confirmed))
+        for name in ('', '   ', None):
+            self.rejected(422, lambda: self.store.create_project(name))
         self.assertEqual(len(self.store.projects()['projects']), 1)
 
     def test_import_copies_selection_with_new_ids_and_pinned_two_way_provenance(self):
@@ -166,7 +166,7 @@ class ProjectReuseTests(unittest.TestCase):
                  (422, {'source_id': self.target['id']}), (404, {'source_id': 'missing'}),
                  (404, {'requirement_ids': ['R-001', 'R-999']}),
                  (422, {'requirement_ids': []}), (422, {'requirement_ids': ['R-001', 'R-001']}),
-                 (422, {'requirement_ids': [1]}), (422, {'confirmed': False}),
+                 (422, {'requirement_ids': [1]}),
                  (422, {'expected': True}), (422, {'source_revision': True})]
         for status, change in cases:
             with self.subTest(change=change):
@@ -220,7 +220,7 @@ class ProjectReuseTests(unittest.TestCase):
         self.assertEqual(reopened.get(self.source['id']), self.source)
         self.assertEqual(reopened.relationships(self.source['id'])['imports'], [])
         self.assertEqual(reopened.summaries()[0]['projectIds'], [])
-        self.assertEqual(reopened.create('Fictional exported copy', True, self.source)['sections'], self.source['sections'])
+        self.assertEqual(reopened.create('Fictional exported copy', self.source)['sections'], self.source['sections'])
 
 
 class ProjectReuseHttpTests(unittest.TestCase):
@@ -234,10 +234,10 @@ class ProjectReuseHttpTests(unittest.TestCase):
         return status, json.loads(value)
 
     def test_project_and_import_routes_return_contract_shapes(self):
-        source = self.http.store.create('Fictional source', True)
+        source = self.http.store.create('Fictional source')
         source['sections']['requirements'] = [fixtures.requirement()]
         source = self.http.store.mutate(source['id'], source['revision'], candidate=source)
-        target = self.http.store.create('Fictional target', True)
+        target = self.http.store.create('Fictional target')
         status, project = self.json_request('POST', '/api/projects', {'name': 'Fictional project', 'privacyConfirmed': True})
         self.assertEqual(status, 201)
         self.assertEqual(self.json_request('GET', '/api/projects')[1], {'projects': [project]})

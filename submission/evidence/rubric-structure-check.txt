@@ -1,0 +1,1 @@
+PASS: 4 criteria; 2 fully anchored scales; valid internal links; no external assets, scripts or forms.

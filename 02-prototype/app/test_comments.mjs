@@ -109,7 +109,7 @@ async function api(path, method = 'GET', input) {
     return result;
   }
   if (conflict) { const error = new Error('Changed elsewhere.'); error.status = 409; throw error; }
-  assert.equal(input.privacyConfirmed, true);
+  assert.equal('privacyConfirmed' in input, false);
   let thread = threads.find(item => path.includes(`/${item.id}`));
   if (!thread) {
     assert.equal(input.expectedPrdRevision, 4);
@@ -125,7 +125,7 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
 const find = (dialog, id) => [...dialog.querySelectorAll('input'), ...dialog.querySelectorAll('textarea')].find(node => node.id === id);
 const button = (dialog, label) => dialog.querySelectorAll('button').find(node => node.textContent === label);
 async function open(options = {}) {
-  const done = openComments({doc, api, consent: () => true, ...options}); await flush();
+  const done = openComments({doc, api, ...options}); await flush();
   return {done, dialog: dom.body.children.find(node => node.tag === 'dialog')};
 }
 async function set(input, value) { input.value = value; await input.fire('input'); }
@@ -196,11 +196,6 @@ test = await open({requirementId: 'R-001', anchor: {field: 'behavior', start: 0,
 assert.ok(test.dialog.querySelectorAll('button').some(node => node.textContent === 'New comment on R-001'), 'Comments (N) still offers a new comment inside the list.');
 assert.ok(button(test.dialog, 'Post reply'), 'Comments (N) opens on the first existing discussion.');
 await close(test);
-test = await open({consent: () => false});
-assert.equal(find(test.dialog, 'comments-text').readOnly, true);
-assert.equal(button(test.dialog, 'Post reply').disabled, true);
-await close(test);
-
 // 2026-11-09: polling must preserve keyboard focus and copyable text selections.
 threads[0].messages[0].suggestion = 'Focusable fictional wording.';
 test = await open();

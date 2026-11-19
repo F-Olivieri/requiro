@@ -8,7 +8,7 @@ function el(tag, className, text) {
   return node;
 }
 
-export async function openRequirementStatus({doc, requirementId, api, consent}) {
+export async function openRequirementStatus({doc, requirementId, api}) {
   const requirement = doc.sections.requirements.find(item => item.id === requirementId);
   if (!requirement) throw new Error('This requirement is not in the current PRD. Reopen the saved document.');
   const base = `/api/prds/${encodeURIComponent(doc.id)}/verification`;
@@ -63,19 +63,19 @@ export async function openRequirementStatus({doc, requirementId, api, consent}) 
     if (!Array.isArray(item.owners) || !item.owners.length || item.owners.some(owner => !documented(owner))) gaps.push('engineering owner');
     if (!documented(item.proof)) gaps.push('proof explanation');
     if (!documented(reviewer.value)) gaps.push('reviewer role');
-    const canEdit = consent() && !busy && !stale;
+    const canEdit = !busy && !stale;
     status.disabled = !canEdit;
-    for (const input of [reviewer, notes]) { input.disabled = busy; input.readOnly = !consent() || stale; }
+    for (const input of [reviewer, notes]) { input.disabled = busy; input.readOnly = stale; }
     close.disabled = busy;
     full.disabled = busy || stale;
     save.disabled = !canEdit || !statuses.includes(status.value) || status.value === 'Complete' && gaps.length > 0 || status.value === 'Needs work' && !documented(reviewer.value);
     missing.textContent = `To mark Complete, add: ${gaps.join(', ')}. Use Open delivery review to add owners or proof.`;
     missing.hidden = status.value !== 'Complete' || !gaps.length;
-    hint.textContent = !consent() ? 'Tick the data-use confirmation before changing a status.' : 'Complete and Needs work require a reviewer role. To discuss can be saved before proof or a reviewer is recorded.';
+    hint.textContent = 'Complete and Needs work require a reviewer role. To discuss can be saved before proof or a reviewer is recorded.';
   }
   for (const input of [status, reviewer, notes]) input.addEventListener(input === status ? 'change' : 'input', controls);
   save.addEventListener('click', async () => {
-    if (busy || stale || !consent() || save.disabled) return;
+    if (busy || stale || save.disabled) return;
     busy = true; notice.hidden = true; controls();
     try {
       const updated = await api(`${base}/${encodeURIComponent(requirementId)}/review`, 'POST', {expectedPrdRevision: doc.revision, expectedRevision: item.revision, status: status.value, reviewer: reviewer.value.trim(), notes: notes.value});

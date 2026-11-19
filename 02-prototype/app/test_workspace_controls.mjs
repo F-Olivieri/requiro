@@ -224,20 +224,24 @@ const menuMarkup = markup.slice(markup.indexOf('id="more-menu"'), markup.indexOf
 for (const id of ['connections-prd', 'history-prd', 'export-prd', 'archive-prd']) assert.match(menuMarkup, new RegExp(`id="${id}"[^>]*role="menuitem"`), `${id} stays a real, clickable menu item.`);
 for (const id of ['save-prd', 'comments-prd', 'verify-delivery', 'lifecycle-action']) assert.ok(markup.includes(`id="${id}"`), `${id} keeps its id.`);
 assert.match(markup, /id="more-actions"[^>]*aria-haspopup="menu"[^>]*aria-expanded="false"[^>]*aria-controls="more-menu"/);
-assert.ok(markup.indexOf('id="privacy-consent"') < markup.indexOf('id="library-panel"'), 'The data-use confirmation comes before the library in keyboard order.');
+for (const marker of ['privacy-consent', 'privacy-banner', 'privacy-indicator', 'Data-use', 'data-use confirmation']) assert.ok(!markup.includes(marker), `R-054: index.html has no ${marker}.`);
 assert.ok(!markup.includes('PRODUCT WORKSPACE'), 'The header no longer spends a row on an eyebrow.');
 assert.ok(markup.includes('id="welcome-example"'), 'The welcome screen offers the fictional example.');
 
-// The data-use confirmation is remembered for the browser session only.
+// R-054: no data-use confirmation is asked for, stored or required.
 const appSource = readFileSync(new URL('./ui/app.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '').replace(/^export function /gm, 'function ');
-function consentApp(sessionStorage) {
-  const context = vm.createContext(sessionStorage === undefined ? {} : {sessionStorage});
+for (const name of ['boot.js', 'app.js', 'comments.js', 'completion.js', 'connections.js', 'requirement-status.js', 'style.css', 'theme.css']) {
+  const source = readFileSync(new URL(`./ui/${name}`, import.meta.url), 'utf8');
+  for (const marker of [/consent/i, /privacy-(banner|indicator)/, /data-use confirmation/i, /privacyConfirmed/]) assert.doesNotMatch(source, marker, `${name} has no ${marker}.`);
+}
+function bootApp() {
+  const context = vm.createContext({});
   vm.runInContext(appSource, context);
   const controls = new Map();
   const handlers = new Map();
   context.document = {
     querySelector(selector) {
-      if (!controls.has(selector)) controls.set(selector, {value: '', dataset: {}, classList: {toggle() {}}, setAttribute() {}, focus() { context.focused = selector; }, addEventListener(name, handler) { handlers.set(`${selector} ${name}`, handler); }});
+      if (!controls.has(selector)) controls.set(selector, {value: '', dataset: {}, classList: {toggle() {}}, setAttribute() {}, showModal() { this.opened = true; }, focus() { context.focused = selector; }, addEventListener(name, handler) { handlers.set(`${selector} ${name}`, handler); }});
       return controls.get(selector);
     },
     querySelectorAll: () => [],
@@ -247,34 +251,13 @@ function consentApp(sessionStorage) {
   vm.runInContext('updateControls=()=>{}; renderEditor=()=>{}; refreshLibrary=async()=>{};', context);
   return {context, controls, handlers};
 }
-const session = new Map();
-const sessionStorage = {getItem: key => session.get(key) ?? null, setItem: (key, value) => session.set(key, value), removeItem: key => session.delete(key)};
-let app = consentApp(sessionStorage);
-assert.equal(vm.runInContext('state.consent', app.context), false);
+const app = bootApp();
 await vm.runInContext('init()', app.context);
-assert.equal(app.controls.get('#privacy-banner').hidden, false, 'A new session asks for the data-use confirmation.');
-assert.equal(app.controls.get('#privacy-indicator').hidden, true);
-app.handlers.get('#privacy-consent change')({target: {checked: true}});
-assert.equal(vm.runInContext('state.consent', app.context), true);
-assert.equal(session.get('requiro-consent'), 'confirmed');
-assert.equal(app.controls.get('#privacy-banner').hidden, true, 'The line disappears once confirmed.');
-assert.equal(app.controls.get('#privacy-indicator').hidden, false, 'A small indicator remains to withdraw the confirmation.');
-app = consentApp(sessionStorage);
-assert.equal(vm.runInContext('state.consent', app.context), true, 'Reloading in the same session keeps the confirmation.');
-await vm.runInContext('init()', app.context);
-assert.equal(app.controls.get('#privacy-consent').checked, true);
-assert.equal(app.controls.get('#privacy-banner').hidden, true);
-app.handlers.get('#privacy-indicator click')();
-assert.equal(vm.runInContext('state.consent', app.context), false, 'The indicator withdraws the confirmation.');
-assert.equal(session.has('requiro-consent'), false);
-assert.equal(app.controls.get('#privacy-banner').hidden, false);
-assert.equal(app.context.focused, '#privacy-consent', 'Withdrawing moves focus to the checkbox.');
-app = consentApp({getItem() { throw new Error('Storage blocked'); }, setItem() { throw new Error('Storage blocked'); }, removeItem() { throw new Error('Storage blocked'); }});
-assert.equal(vm.runInContext('state.consent', app.context), false);
-vm.runInContext('setConsent(true)', app.context);
-assert.equal(vm.runInContext('state.consent', app.context), true, 'Blocked session storage still allows confirming for this page.');
-app = consentApp(undefined);
-assert.equal(vm.runInContext('state.consent', app.context), false, 'Missing session storage starts unconfirmed.');
-assert.equal(appSource.includes('localStorage.setItem(\'requiro-consent'), false, 'The confirmation is never stored beyond the session.');
+assert.equal(vm.runInContext('"consent" in state', app.context), false);
+assert.ok(![...app.controls.keys()].some(selector => selector.includes('privacy')), 'Startup touches no confirmation control.');
+vm.runInContext('state.doc={id:"fictional-doc",title:"Fictional list",status:"Draft",revision:1,sections:{},chat:[]}; state.saved=clone(state.doc);', app.context);
+assert.equal(vm.runInContext('editable()', app.context), true, 'An open draft is editable without any confirmation.');
+app.handlers.get('#new-prd click')();
+assert.equal(app.controls.get('#new-dialog').opened, true, 'New PRD opens directly.');
 
-console.log('Workspace controls passed: accessible icon labels, independent panels, settings, retained content, reload preferences, blocked-storage fallback, narrow-screen panels, the More menu and session-only data-use confirmation.');
+console.log('Workspace controls passed: accessible icon labels, independent panels, settings, retained content, reload preferences, blocked-storage fallback, narrow-screen panels, the More menu and no data-use confirmation.');

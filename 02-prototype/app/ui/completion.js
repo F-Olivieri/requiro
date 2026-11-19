@@ -12,7 +12,7 @@ const el = (tag, className, text) => {
 const ownersFrom = text => [...new Set(text.split(',').map(value => value.trim()).filter(Boolean))];
 const documentedText = text => !['', 'not documented', 'unknown', 'unresolved', 'tbd', 'tbc'].includes(text.trim().toLowerCase());
 
-export async function openCompletion({doc, api, consent, requirementId}) {
+export async function openCompletion({doc, api, requirementId}) {
   const base = `/api/prds/${encodeURIComponent(doc.id)}`;
   const data = await api(`${base}/verification`);
   if (data.documentId !== doc.id || data.prdRevision !== doc.revision) throw new Error('This PRD changed. Reopen it before opening Delivery review.');
@@ -63,11 +63,11 @@ export async function openCompletion({doc, api, consent, requirementId}) {
     for (const button of list.querySelectorAll('button')) button.disabled = busy;
     report.setAttribute('aria-disabled', String(busy || stale));
     if (!inputs) return;
-    const canEdit = consent() && !busy && !stale;
+    const canEdit = !busy && !stale;
     const req = doc.sections.requirements.find(item => item.id === selected);
     for (const input of [inputs.owners, inputs.proof, inputs.reviewer, inputs.notes]) {
       input.disabled = busy;
-      input.readOnly = !consent() || stale;
+      input.readOnly = stale;
     }
     inputs.save.disabled = !canEdit || !evidenceDirty();
     inputs.file.disabled = !canEdit || evidenceDirty();
@@ -82,7 +82,7 @@ export async function openCompletion({doc, api, consent, requirementId}) {
     if (!documentedText(inputs.reviewer.value)) missing.push('reviewer role');
     inputs.missing.textContent = `To mark complete, add: ${missing.join(', ')}.`;
     inputs.missing.hidden = !missing.length;
-    inputs.saveHint.textContent = !consent() ? 'Close Delivery review and tick the data-use confirmation to edit or upload.' : stale ? 'A newer saved record exists. Your unsaved text is still here. Close and reopen Delivery review to load it.' : evidenceDirty() ? 'Save owners and proof before uploading or changing the delivery status.' : 'Changing owners, proof or attachments turns Complete or Needs work into Needs recheck. To discuss stays until you change it.';
+    inputs.saveHint.textContent = stale ? 'A newer saved record exists. Your unsaved text is still here. Close and reopen Delivery review to load it.' : evidenceDirty() ? 'Save owners and proof before uploading or changing the delivery status.' : 'Changing owners, proof or attachments turns Complete or Needs work into Needs recheck. To discuss stays until you change it.';
   }
   function renderOverview() {
     const counts = Object.fromEntries(statuses.map(status => [status, 0]));
@@ -200,7 +200,7 @@ export async function openCompletion({doc, api, consent, requirementId}) {
     controls();
   }
   async function mutate(task, preserveVerdict = false, success = null) {
-    if (busy || stale || !consent()) return;
+    if (busy || stale) return;
     busy = true; message(''); controls();
     try {
       const result = await task();

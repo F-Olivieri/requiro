@@ -29,7 +29,7 @@ class StoreTests(unittest.TestCase):
         self.store = prd_store.Store(self.directory.name)
 
     def create(self):
-        return self.store.create('Fictional list builder', True)
+        return self.store.create('Fictional list builder')
 
     def save(self, doc):
         return self.store.mutate(doc['id'], doc['revision'], candidate=doc)
@@ -49,19 +49,17 @@ class StoreTests(unittest.TestCase):
             operation()
         self.assertEqual(caught.exception.status, status)
 
-    def test_create_requires_explicit_privacy_confirmation(self):
-        for confirmation in (False, None, 'true', 1):
-            with self.subTest(confirmation=confirmation):
-                self.assert_rejected(422, lambda: self.store.create('Fictional list', confirmation))
-        self.assertEqual(self.store.summaries(), [])
-        self.assertEqual(self.create()['status'], 'Draft')
+    def test_create_needs_no_privacy_confirmation_and_keeps_stored_label(self):
+        doc = self.create()
+        self.assertEqual((doc['status'], doc['privacy']), ('Draft', 'synthetic-or-approved-nonconfidential'))
+        self.assertEqual(self.store.create_project('Fictional unconfirmed project')['name'], 'Fictional unconfirmed project')
 
     def test_store_rejects_unencodable_text_and_preserves_valid_unicode(self):
         for value in ('\ud800', '\udfff'):
             with self.subTest(value=repr(value)):
-                self.assert_rejected(422, lambda: self.store.create(value, True))
+                self.assert_rejected(422, lambda: self.store.create(value))
         self.assertEqual(self.store.summaries(), [])
-        self.assertEqual(self.store.create('Fictional list 😀 ✓', True)['title'], 'Fictional list 😀 ✓')
+        self.assertEqual(self.store.create('Fictional list 😀 ✓')['title'], 'Fictional list 😀 ✓')
 
     def test_stale_save_rejects_without_changing_document_or_history(self):
         initial = self.create()
@@ -173,7 +171,7 @@ class StoreTests(unittest.TestCase):
     def test_import_has_new_identity_and_cannot_inherit_approval(self):
         source = self.ready()
         source.update(status='Approved', approvedRevision=900, revision=900)
-        imported = self.store.create(source['title'], True, imported=source)
+        imported = self.store.create(source['title'], imported=source)
         self.assertNotEqual(imported['id'], source['id'])
         self.assertEqual(imported['revision'], 1)
         self.assertEqual(imported['status'], 'Draft')
@@ -184,7 +182,7 @@ class StoreTests(unittest.TestCase):
         source = self.ready()
         source['sections']['requirements'].append(copy.deepcopy(source['sections']['requirements'][0]))
         before = self.store.summaries()
-        self.assert_rejected(422, lambda: self.store.create('Fictional duplicate import', True, imported=source))
+        self.assert_rejected(422, lambda: self.store.create('Fictional duplicate import', imported=source))
         self.assertEqual(self.store.summaries(), before)
 
     def test_unknown_or_missing_sections_are_rejected_without_history_change(self):
@@ -327,19 +325,46 @@ class HttpTests(unittest.TestCase):
                 self.assertEqual(status, 403)
         self.assertEqual(self.http.store.summaries(), [])
 
-    def test_content_type_privacy_and_json_boundaries_prevent_writes(self):
-        body = json.dumps({'title': 'Fictional list', 'privacyConfirmed': True})
+    def test_content_type_and_json_boundaries_prevent_writes(self):
+        body = json.dumps({'title': 'Fictional list'})
         for content_type in ('text/plain', 'application/x-www-form-urlencoded', ''):
             with self.subTest(content_type=content_type):
                 self.assertEqual(self.request('POST', '/api/prds', body, {'Content-Type': content_type})[0], 415)
         self.assertEqual(self.request('POST', '/api/prds', '{', {'Content-Type': 'application/json'})[0], 400)
         self.assertEqual(self.request('POST', '/api/prds', '[]', {'Content-Type': 'application/json'})[0], 422)
-        self.assertEqual(self.request('POST', '/api/prds', '{"title":"Fictional list"}', {'Content-Type': 'application/json'})[0], 422)
         self.assertEqual(self.http.store.summaries(), [])
         self.assertEqual(self.request('POST', '/api/prds', body, {'Content-Type': 'application/json; charset=utf-8'})[0], 201)
 
+    def test_create_import_example_and_reuse_need_no_privacy_confirmation(self):
+        headers = {'Content-Type': 'application/json'}
+        post = lambda path, data: self.request('POST', path, json.dumps(data), headers)
+        status, _, payload = post('/api/prds', {'title': 'Fictional unconfirmed list'})
+        self.assertEqual(status, 201)
+        created = json.loads(payload)
+        self.assertEqual(created['privacy'], 'synthetic-or-approved-nonconfidential')
+        for legacy in (True, False, None, 'true'):
+            with self.subTest(legacy=legacy):
+                self.assertEqual(post('/api/prds', {'title': 'Fictional older client', 'privacyConfirmed': legacy})[0], 201)
+        status, _, example = self.request(path='/api/example')
+        self.assertEqual(status, 200)
+        status, _, payload = post('/api/import', {'doc': json.loads(example)})
+        self.assertEqual(status, 201)
+        source = json.loads(payload)
+        self.assertEqual(source['privacy'], 'synthetic-or-approved-nonconfidential')
+        self.assertEqual(post('/api/import', {'doc': source, 'privacyConfirmed': False})[0], 201)
+        self.assertEqual(post('/api/projects', {'name': 'Fictional unconfirmed project'})[0], 201)
+        status, _, payload = post(f"/api/prds/{created['id']}/import-requirements", {
+            'expectedRevision': created['revision'], 'sourceDocumentId': source['id'],
+            'sourceRevision': source['revision'], 'requirementIds': [source['sections']['requirements'][0]['id']]})
+        self.assertEqual(status, 200)
+        self.assertEqual(len(json.loads(payload)['doc']['sections']['requirements']), 1)
+        status, _, page = self.request(path='/')
+        self.assertEqual(status, 200)
+        for marker in (b'privacy-consent', b'privacy-banner', b'privacy-indicator', b'data-use'):
+            self.assertNotIn(marker, page)
+
     def test_invalid_unicode_is_rejected_before_writes_across_json_routes(self):
-        doc = self.http.store.create('Fictional Unicode boundary', True)
+        doc = self.http.store.create('Fictional Unicode boundary')
         doc['sections']['requirements'] = [requirement()]
         doc = self.http.store.mutate(doc['id'], doc['revision'], candidate=doc)
         history = self.http.store.history(doc['id'])
@@ -382,7 +407,7 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(json.loads(payload)['title'], title)
 
     def test_history_and_restore_reject_out_of_range_revisions_without_writes(self):
-        doc = self.http.store.create('Fictional numeric revision bounds', True)
+        doc = self.http.store.create('Fictional numeric revision bounds')
         history = self.http.store.history(doc['id'])
         for repeat in range(2):
             for revision in ('9' * 5000, str(2 ** 63), str(10 ** 20)):
@@ -408,7 +433,8 @@ class HttpTests(unittest.TestCase):
         status, headers, body = self.request(path='/boot.js')
         self.assertEqual(status, 200)
         self.assertTrue(headers['Content-Type'].startswith('text/javascript'))
-        self.assertIn(b'requiro-consent', body)
+        self.assertIn(b'requiro-display', body)
+        self.assertNotIn(b'consent', body)
         self.assertNotIn(b'import ', body)
         _, _, page = self.request(path='/')
         head = page.split(b'</head>')[0]
@@ -425,7 +451,7 @@ class HttpTests(unittest.TestCase):
                 self.assertNotIn(b'SQLite format', body)
 
     def test_use_case_context_and_readable_export_keep_saved_json_unchanged(self):
-        doc = self.http.store.create('Fictional named-use-case PRD', True)
+        doc = self.http.store.create('Fictional named-use-case PRD')
         doc['sections']['useCases'] = 'UC-01: A member keeps a draft.'
         doc['sections']['requirements'] = [{**requirement(), 'appliesTo': 'UC-01'}]
         doc = self.http.store.mutate(doc['id'], doc['revision'], candidate=doc)
@@ -440,8 +466,8 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.http.store.get(doc['id']), doc)
 
     def test_packet_endpoint_enforces_current_revision_and_document_isolation(self):
-        chosen = self.http.store.create('Fictional chosen list', True)
-        other = self.http.store.create('Fictional unrelated list', True)
+        chosen = self.http.store.create('Fictional chosen list')
+        other = self.http.store.create('Fictional unrelated list')
         path = f"/api/prds/{chosen['id']}/packet"
         status, _, body = self.request('POST', path, json.dumps({
             'expectedRevision': chosen['revision'], 'message': 'Review the draft.',
@@ -456,7 +482,7 @@ class HttpTests(unittest.TestCase):
 
     def test_copy_for_assistant_then_save_keeps_reply_revision_and_approval(self):
         store = self.http.store
-        doc = store.create('Fictional approved list', True)
+        doc = store.create('Fictional approved list')
         doc['sections'].update(problem='Lists lose order.', users='List members.', outcomes='O-001: keep order.',
                                useCases='U-001: a member reorders a list.', scope='Draft lists.', requirements=[requirement()])
         doc = store.mutate(doc['id'], doc['revision'], candidate=doc)

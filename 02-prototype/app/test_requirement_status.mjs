@@ -25,7 +25,6 @@ const doc = {id: 'fictional-doc', revision: 8, sections: {requirements: [
 ]}};
 const baseRow = {requirementId: 'R-002', revision: 3, owners: [], proof: '', status: 'Not reviewed', reviewer: '', reviewNotes: ''};
 let row;
-let consent = true;
 let conflict = false;
 let wrongResponse = false;
 let posts = [];
@@ -42,7 +41,7 @@ async function api(path, method = 'GET', input) {
 }
 async function open(changes = {}, candidate = doc) {
   row = {...structuredClone(baseRow), ...changes};
-  const done = openRequirementStatus({doc: candidate, requirementId: 'R-002', api, consent: () => consent});
+  const done = openRequirementStatus({doc: candidate, requirementId: 'R-002', api});
   await new Promise(resolve => setImmediate(resolve));
   return {done, dialog: body.children[0]};
 }
@@ -109,14 +108,6 @@ test = await open();
 await button(test.dialog, 'Open delivery review').click();
 assert.deepEqual(await test.done, {fullReview: true});
 
-consent = false;
-test = await open({status: 'To discuss'});
-assert.equal(button(test.dialog, 'Save status').disabled, true);
-const beforePosts = posts.length;
-await button(test.dialog, 'Save status').click();
-assert.equal(posts.length, beforePosts, 'Missing acknowledgement cannot send a status change.');
-await cancel(test); consent = true;
-
 for (const missing of ['behavior', 'acceptance']) {
   const incomplete = structuredClone(doc); incomplete.sections.requirements[1][missing] = 'TBC';
   test = await open({owners: ['Application engineer'], proof: 'Simulated proof.', reviewer: 'Test engineer'}, incomplete);
@@ -135,8 +126,8 @@ await cancel(test); wrongResponse = false;
 
 for (const mismatch of [{documentId: 'other-doc', prdRevision: 8}, {documentId: doc.id, prdRevision: 9}]) {
   responseIdentity = mismatch;
-  await assert.rejects(openRequirementStatus({doc, requirementId: 'R-002', api, consent: () => true}), /PRD changed/);
+  await assert.rejects(openRequirementStatus({doc, requirementId: 'R-002', api}), /PRD changed/);
   assert.equal(body.children.length, 0);
 }
 assert.equal(JSON.stringify(doc), baseline, 'Changing review status never mutates the PRD document.');
-console.log('Requirement status chooser passed: options, proof/reviewer gates, CAS, discussion, full review, consent, conflicts and draft protection.');
+console.log('Requirement status chooser passed: options, proof/reviewer gates, CAS, discussion, full review, conflicts and draft protection.');

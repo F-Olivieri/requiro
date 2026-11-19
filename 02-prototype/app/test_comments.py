@@ -16,7 +16,7 @@ from verification import Verification
 
 
 def create_prd(store):
-    doc = store.create('Fictional card board', True)
+    doc = store.create('Fictional card board')
     req = requirement()
     req['behavior'] = 'A member can move 😀 cards between lists.'
     doc['sections']['requirements'] = [req]
@@ -30,7 +30,7 @@ def body_for(doc, field='behavior', quote='😀'):
     return {'expectedPrdRevision': doc['revision'], 'anchor': {
         'field': field, 'start': start, 'end': start + len(quote.encode('utf-16-le')) // 2,
         'quote': quote, 'sourceText': source}, 'author': 'Product role',
-        'text': 'Should moving a card preserve its position?', 'suggestion': '', 'privacyConfirmed': True}
+        'text': 'Should moving a card preserve its position?', 'suggestion': ''}
 
 
 class CommentsTests(unittest.TestCase):
@@ -98,8 +98,8 @@ class CommentsTests(unittest.TestCase):
             self.assert_rejected(status, lambda b=body: self.comments.create(self.doc['id'], 'R-001', b))
         self.assertEqual(self.comments.get(self.doc['id'])['threads'], [])
 
-    def test_privacy_labels_limits_and_unicode_are_validated(self):
-        for changes in ({'privacyConfirmed': False}, {'privacyConfirmed': 1}, {'author': ''},
+    def test_labels_limits_and_unicode_are_validated(self):
+        for changes in ({'author': ''},
                         {'author': 'x' * 201}, {'text': '', 'suggestion': ''}, {'text': '\ud800'},
                         {'suggestion': '\udfff'}, {'author': '\ud800'}, {'text': 'x' * 20001}):
             body = {**body_for(self.doc), **changes}
@@ -107,6 +107,10 @@ class CommentsTests(unittest.TestCase):
         body = {**body_for(self.doc), 'text': '', 'suggestion': 'Keep 😀 cards in their original order.'}
         thread = self.comments.create(self.doc['id'], 'R-001', body)
         self.assertEqual(thread['messages'][0]['suggestion'], body['suggestion'])
+        for legacy in (True, False):
+            self.assertEqual(self.comments.reply(self.doc['id'], 'R-001', thread['id'], {
+                'author': 'Engineering role', 'text': 'Fictional older client reply', 'privacyConfirmed': legacy,
+            })['messages'][-1]['text'], 'Fictional older client reply')
 
     def test_changed_or_removed_source_keeps_quote_and_allows_replies(self):
         thread = self.create()
@@ -213,8 +217,8 @@ class CommentsHttpTests(unittest.TestCase):
         self.assertEqual(self.request()[1]['threads'], [thread])
         self.assertEqual(self.service.store.get(self.doc['id']), before)
 
-    def test_http_stale_unicode_privacy_and_source_failures_do_not_create_threads(self):
-        for changes, expected in (({'expectedPrdRevision': 1}, 409), ({'privacyConfirmed': False}, 422),
+    def test_http_stale_unicode_and_source_failures_do_not_create_threads(self):
+        for changes, expected in (({'expectedPrdRevision': 1}, 409),
                                   ({'text': '\ud800'}, 422), ({'author': '\udfff'}, 422)):
             for repeat in range(2):
                 with self.subTest(changes=repr(changes), repeat=repeat):

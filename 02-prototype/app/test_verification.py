@@ -18,7 +18,7 @@ from verification import MAX_ATTACHMENT_BYTES, Verification
 
 
 def create_prd(store):
-    doc = store.create('Fictional list completion', True)
+    doc = store.create('Fictional list completion')
     doc['sections']['requirements'] = [
         {'id': f'R-{number:03}', 'priority': 'Must', 'proposed': False,
          'appliesTo': 'A member edits a draft list.', 'outcome': 'Preserve draft items.',

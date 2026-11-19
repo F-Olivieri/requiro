@@ -36,7 +36,7 @@ class RecognitionTests(unittest.TestCase):
             connection.close()
 
     def test_export_filenames_use_a_safe_title_slug(self):
-        doc = self.store.create('Shared garden task board v3', True)
+        doc = self.store.create('Shared garden task board v3')
         for query, name in (('markdown', 'shared-garden-task-board-v3.md'), ('json', 'shared-garden-task-board-v3.json')):
             status, headers, _ = self.request(f"/api/export/{doc['id']}?format={query}")
             self.assertEqual(status, 200)
@@ -49,12 +49,12 @@ class RecognitionTests(unittest.TestCase):
         self.assertLessEqual(len(server.export_name({'id': 'PRD-1', 'title': 'a ' * 200})), 80)
 
     def test_import_history_names_the_source_prd_by_title(self):
-        source = self.store.create('Fictional source list', True)
+        source = self.store.create('Fictional source list')
         source['sections']['requirements'] = [{'id': 'R-001', 'priority': 'Must', 'proposed': False, 'appliesTo': 'A member saves a list.',
                                                'outcome': 'Keep the list.', 'behavior': 'A member can save a list.', 'acceptance': 'The list remains after reload.'}]
         source = self.store.mutate(source['id'], source['revision'], candidate=source)
-        target = self.store.create('Fictional target list', True)
-        result = self.store.import_requirements(target['id'], target['revision'], source['id'], source['revision'], ['R-001'], True)
+        target = self.store.create('Fictional target list')
+        result = self.store.import_requirements(target['id'], target['revision'], source['id'], source['revision'], ['R-001'])
         reason = self.store.history(target['id'])[0]['reason']
         self.assertEqual(reason, f"Imported 1 requirement(s) from “Fictional source list” revision {source['revision']}")
         self.assertNotIn(source['id'], reason)
@@ -68,7 +68,7 @@ class RecognitionTests(unittest.TestCase):
         self.assertIn('PRD-000000000000', self.store.history(target['id'])[0]['reason'])
 
     def test_markdown_dates_are_local_and_unambiguous(self):
-        doc = self.store.create('Fictional dated list', True)
+        doc = self.store.create('Fictional dated list')
         doc['updatedAt'] = '2026-11-11T00:41:05+00:00'
         self.addCleanup(time.tzset)
         with patch.dict('os.environ', {'TZ': 'America/Los_Angeles'}):

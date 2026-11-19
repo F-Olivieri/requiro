@@ -57,7 +57,7 @@ class DataDirectoryTests(unittest.TestCase):
     def rich_store(self, directory):
         store = prd_store.Store(directory)
         example = json.loads(EXAMPLE_PATH.read_text())
-        doc = store.create('Fictional migration list', True, imported=example)
+        doc = store.create('Fictional migration list', imported=example)
         for requirement in doc['sections']['requirements']:
             requirement['proposed'] = False
         doc['chat'] = [
@@ -70,7 +70,7 @@ class DataDirectoryTests(unittest.TestCase):
         changed = copy.deepcopy(approved)
         changed['sections']['decisions'] = 'Decide whether to retain completed suggestions.'
         changed = store.mutate(changed['id'], changed['revision'], candidate=changed)
-        other = store.create('Fictional archived list', True)
+        other = store.create('Fictional archived list')
         store.mutate(other['id'], other['revision'], action='archive')
         if directory == self.legacy:
             store.path.rename(directory / 'juno.sqlite3')
@@ -140,7 +140,7 @@ class DataDirectoryTests(unittest.TestCase):
 
     def test_conflicting_directories_leave_both_stores_unchanged(self):
         self.rich_store(self.legacy)
-        prd_store.Store(self.target).create('Fictional separate list', True)
+        prd_store.Store(self.target).create('Fictional separate list')
         before_legacy = files_under(self.legacy)
         before_target = files_under(self.target)
         with self.assertRaises(RuntimeError):
@@ -197,16 +197,16 @@ class DatabaseNameMigrationTests(unittest.TestCase):
         self.directory = Path(scratch.name)
         self.store = prd_store.Store(self.directory)
         example = json.loads(EXAMPLE_PATH.read_text())
-        doc = self.store.create('Fictional migration PRD', True, imported=example)
+        doc = self.store.create('Fictional migration PRD', imported=example)
         for requirement in doc['sections']['requirements']:
             requirement['proposed'] = False
         doc = self.store.mutate(doc['id'], doc['revision'], candidate=doc)
         doc = self.store.mutate(doc['id'], doc['revision'], action='review')
         self.doc = self.store.mutate(doc['id'], doc['revision'], action='approve')
-        project = self.store.create_project('Fictional migration project', True)
+        project = self.store.create_project('Fictional migration project')
         self.store.link_projects(doc['id'], [], [project['id']])
-        target = self.store.create('Fictional reuse destination', True)
-        self.store.import_requirements(target['id'], target['revision'], self.doc['id'], self.doc['revision'], ['R-001'], True)
+        target = self.store.create('Fictional reuse destination')
+        self.store.import_requirements(target['id'], target['revision'], self.doc['id'], self.doc['revision'], ['R-001'])
         verification = Verification(self.store)
         item = verification.update(doc['id'], 'R-001', {
             'expectedPrdRevision': self.doc['revision'], 'expectedRevision': 0,
@@ -376,7 +376,7 @@ class UiSeparationHttpTests(unittest.TestCase):
             self.assertEqual(prd_store.Store(self.directory.name).get(created['id']), created)
 
     def test_raw_data_and_storage_source_paths_are_not_static_assets(self):
-        self.http.store.create('SYNTHETIC_DATA_NOT_STATIC', True)
+        self.http.store.create('SYNTHETIC_DATA_NOT_STATIC')
         for path in ('/data/prds/requiro.sqlite3', '/requiro.sqlite3', '/ui/../../data/prds/requiro.sqlite3',
                      '/data/prds/juno.sqlite3', '/.juno-data/juno.sqlite3',
                      '/juno.sqlite3', '/prd_store.py', '/ui/../../data/prds/juno.sqlite3',

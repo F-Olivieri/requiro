@@ -47,7 +47,7 @@ const button = (dialog, label) => dialog.querySelectorAll('button').find(node =>
 const field = (dialog, id) => [...dialog.querySelectorAll('select'), ...dialog.querySelectorAll('input')].find(node => node.id === id);
 const flush = () => new Promise(resolve => setImmediate(resolve));
 async function open(options = {}) {
-  const done = openConnections({doc: target, docs: [target, source], api, consent: () => true, hasUnsavedEdits: false, ...options});
+  const done = openConnections({doc: target, docs: [target, source], api, hasUnsavedEdits: false, ...options});
   await flush(); return {done, dialog: body.children[0]};
 }
 async function close(test) { confirmDiscard = true; await button(test.dialog, '×').click(); await test.done; }
@@ -71,7 +71,7 @@ conflict = false;
 await button(test.dialog, 'Import selected requirements').click();
 assert.equal((await test.done).doc.revision, 4);
 const request = calls.findLast(call => call.path.endsWith('/import-requirements'));
-assert.deepEqual(request.data, {expectedRevision: 3, sourceDocumentId: 'source', sourceRevision: 7, requirementIds: ['R-005'], privacyConfirmed: true});
+assert.deepEqual(request.data, {expectedRevision: 3, sourceDocumentId: 'source', sourceRevision: 7, requirementIds: ['R-005']});
 assert.equal(target.revision, 3, 'Dialog never mutates its input PRD.');
 assert.equal(listeners.has('beforeunload'), false);
 
@@ -84,7 +84,7 @@ confirmDiscard = false;
 await button(test.dialog, '×').click();
 assert.equal(test.dialog.open, true, 'Closing preserves pending project selections.');
 await button(test.dialog, 'Save project links').click(); await flush();
-assert.deepEqual(calls.findLast(call => call.method === 'PUT').data, {expectedProjectIds: ['project-a'], projectIds: ['project-a', 'project-b'], privacyConfirmed: true});
+assert.deepEqual(calls.findLast(call => call.method === 'PUT').data, {expectedProjectIds: ['project-a'], projectIds: ['project-a', 'project-b']});
 await close(test);
 
 imports = [{sourceDocumentId: 'source', sourceTitle: 'Fictional source', sourceRevision: 7, sourceRequirementId: 'R-005', targetDocumentId: 'target', targetTitle: target.title, targetRequirementId: 'R-009'}];
@@ -96,11 +96,9 @@ assert.equal(test.dialog.querySelectorAll('input').find(node => node.value === '
 await button(test.dialog, 'Open source PRD').click();
 assert.equal((await test.done).openDocumentId, 'source');
 
-for (const options of [{consent: () => false}, {doc: {...target, status: 'Archived'}}]) {
-  test = await open(options);
-  assert.equal(button(test.dialog, 'Import selected requirements').disabled, true);
-  await close(test);
-}
+test = await open({doc: {...target, status: 'Archived'}});
+assert.equal(button(test.dialog, 'Import selected requirements').disabled, true);
+await close(test);
 test = await open({doc: null});
 field(test.dialog, 'project-name').value = 'Fictional shared launch';
 await test.dialog.querySelector('form').fire('submit'); await flush();

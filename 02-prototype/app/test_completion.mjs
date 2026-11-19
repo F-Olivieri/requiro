@@ -41,7 +41,7 @@ async function api(path, method = 'GET', data) {
   row.revision++; row.baselinePrdRevision = 1;
   return clone(row);
 }
-const opened = openCompletion({doc, api, consent: () => true});
+const opened = openCompletion({doc, api});
 await new Promise(resolve => setImmediate(resolve));
 const dialog = body.children[0];
 const all = () => [dialog, ...dialog.querySelectorAll('button'), ...dialog.querySelectorAll('input'), ...dialog.querySelectorAll('textarea')];
@@ -101,14 +101,14 @@ assert.equal(JSON.stringify(doc), before, 'Completion never mutates PRD authorin
 confirmDiscard = true;
 await button('×').click(); await opened;
 assert.equal(body.children.length, 0);
-const targeted = openCompletion({doc, api, consent: () => true, requirementId: 'R-002'});
+const targeted = openCompletion({doc, api, requirementId: 'R-002'});
 await new Promise(resolve => setImmediate(resolve));
 assert.ok(body.children[0].querySelectorAll('h3').some(node => node.textContent.startsWith('R-002')), 'Review from either view opens the chosen requirement.');
 await body.children[0].querySelectorAll('button').find(node => node.textContent === '×').click(); await targeted;
 for (const key of ['behavior', 'acceptance']) {
   for (const value of ['', ' Not documented ', 'Unknown', 'Unresolved', 'TBD', 'TBC']) {
     const incomplete = clone(doc); incomplete.sections.requirements[0][key] = value;
-    const review = openCompletion({doc: incomplete, api, consent: () => true});
+    const review = openCompletion({doc: incomplete, api});
     await new Promise(resolve => setImmediate(resolve));
     const active = body.children[0];
     assert.equal(active.querySelectorAll('button').find(node => node.textContent === 'Mark complete').disabled, true, `${key}=${JSON.stringify(value)} must prevent completion.`);
@@ -118,7 +118,7 @@ for (const key of ['behavior', 'acceptance']) {
 }
 for (const key of ['proof', 'reviewer']) {
   const saved = rows.get('R-001')[key]; rows.get('R-001')[key] = ' Unknown ';
-  const review = openCompletion({doc, api, consent: () => true});
+  const review = openCompletion({doc, api});
   await new Promise(resolve => setImmediate(resolve));
   const active = body.children[0];
   assert.equal(active.querySelectorAll('button').find(node => node.textContent === 'Mark complete').disabled, true, `Placeholder ${key} must prevent completion.`);

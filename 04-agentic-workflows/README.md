@@ -1,7 +1,10 @@
 # 04-agentic-workflows
 
-Module 4 artifact for Requiro. Fill the markdown in class.
+The completed [Agent Control Panel](agent-control-panel.md) defines the four
+levers (controls) and four rules of engagement (limits on actions and access)
+for Requiro’s requirements-drafting workflow.
 
-| File | When | How |
-|---|---|---|
-| `agent-control-panel.md` | The lab, in class (~30 min) | Open `M4 - Agent Control Panel.html`. Spec the four control-panel levers and the rules-of-engagement surfaces for one Requiro pillar. Copy as markdown over this file. |
+It separates checks performed by the prototype from proposed limits that a
+human follows during the trial. The assistant suggests wording for a product
+requirements document (PRD); the product manager (PM) chooses what to apply,
+save, and approve.

@@ -12,7 +12,7 @@ class RestoreKeepsConversationTests(unittest.TestCase):
         self.store = prd_store.Store(self.directory.name)
 
     def test_restore_keeps_current_conversation(self):
-        first = self.store.create('Fictional reading list', True)
+        first = self.store.create('Fictional reading list')
         candidate = copy.deepcopy(first)
         candidate['sections']['problem'] = 'Fictional readers lose track of shared books.'
         edited = self.store.mutate(first['id'], first['revision'], candidate=candidate)

@@ -1,0 +1,96 @@
+{
+  "capturedAt": "2026-11-19T18:07:52.295647+00:00",
+  "purpose": "Course-submission regression evidence using synthetic fixtures only.",
+  "environment": {
+    "python": "Python 3.14.4",
+    "node": "v25.9.0"
+  },
+  "python": {
+    "command": "python3 -B -m unittest discover -s 02-prototype/app -p 'test_*.py' -v",
+    "testCount": 111,
+    "result": "pass",
+    "log": "prototype-python-tests.txt",
+    "data": "TemporaryDirectory fixtures; local loopback HTTP servers; no real library."
+  },
+  "javascript": {
+    "command": "Run node for each 02-prototype/app/test_*.mjs file",
+    "fileCount": 10,
+    "result": "pass",
+    "log": "prototype-node-tests.json",
+    "coverage": "Unit tests with DOM mocks and source checks. Not real browser interaction evidence."
+  },
+  "rubric": {
+    "command": "python3 -B 05-evals/_tooling/check-human-rubric.py",
+    "result": "pass",
+    "log": "rubric-structure-check.txt",
+    "coverage": "4 dimensions, 2 fully anchored 1-5 scales, internal links, offline structure."
+  },
+  "courseRubricAudit": {
+    "source": "https://app.productschool.com/lms/student/content/aipmc%402026.1/outputs/certifications/aipmc/2026.1/Modules/M5%20-%20Human%20Evaluation%20Rubric.html",
+    "checks": {
+      "scoringUnitAndValueProposition": true,
+      "threeToFiveQuestions": true,
+      "scoreAnchors": true,
+      "samplingAndCadence": true,
+      "reviewersAndDisagreementRule": true,
+      "passbarAndAutomaticFails": true
+    }
+  },
+  "modelConnection": {
+    "available": false,
+    "mode": "human-mediated copy/paste handoff",
+    "source": "02-prototype/app/server.py /api/state and packet()"
+  },
+  "limits": [
+    "No independent human calibration session was run.",
+    "No model-output evaluation was run.",
+    "No real-world time-saving, adoption, accuracy, or business impact was measured.",
+    "Browser interaction testing is separate from these logs."
+  ],
+  "sha256": {
+    "02-prototype/app/comments.py": "87323c0d833d9c7575e4bbdceb0fce8ca035b1fa99487045e9fc5f19eb6dc340",
+    "02-prototype/app/prd_store.py": "0a07b8a9fde6fe68941b1697f4ce617268512c20beab613a8674164ec05a6b0a",
+    "02-prototype/app/server.py": "971a1b907e9e8b39e7a6de2dccfb405b63605963cca9b33082069a6de530b36c",
+    "02-prototype/app/test_comments.mjs": "530e875acb79d1cf9f47c85da4d243ebd682a52906c7774c4784954489b1c7c9",
+    "02-prototype/app/test_comments.py": "706f211c66ee443b4d1e909fcdb26aad20d775ef3aa073e37fcbd21bc7720db0",
+    "02-prototype/app/test_completion.mjs": "d5196d59248cefa282d9e5fab688eba6892fca2a795ff77ff0a5c72ccec50083",
+    "02-prototype/app/test_connections.mjs": "0f1579209c1fc37f05474e2449cb71f6d03dd34a5b7db31c9e11b2e959da72aa",
+    "02-prototype/app/test_data_separation.py": "d16cbd0ad7fef4bbd41f7dceb9b081d8428995ab68ba6630d99509f856e4f643",
+    "02-prototype/app/test_format.mjs": "b097957f64910fa2d5c0c8113ab25ad9f6114a3f25280e15f9354e1293a81710",
+    "02-prototype/app/test_lifecycle.mjs": "2c246cab8dd7ee1376fbe7ebbe0e5c1c5aa1ba540745aa6055fa4a512e2374c0",
+    "02-prototype/app/test_lifecycle.py": "0bfcb36aa6f8e00b4a54ececda0fcb5ae0c3e9a403f0b18259f58796baf0594b",
+    "02-prototype/app/test_prd_views.mjs": "3d5b2ea9b94069c93713549c4b13a0789302ed220176102de275fd82dad52372",
+    "02-prototype/app/test_project_reuse.py": "ed52b442bb8e0eb0dec4af1966c1a5fbf5a022fc334109748f5a79da48749760",
+    "02-prototype/app/test_recognition.py": "c8fcfca747bddab51935d2d6ca5dd5ca4ebe9c6dfac4033d21b626904e0e1ac1",
+    "02-prototype/app/test_requirement_status.mjs": "805c5042f20cbb70ed851e5c1f7d043f391e2666edf6899e242415c5f44dcf4a",
+    "02-prototype/app/test_restore_chat.py": "5e04c6b5ed16a39a02b444c9a831041a49b3b8ac08429cf2e2baac205967174b",
+    "02-prototype/app/test_server.py": "5dac5f08a6a505632edff57e4cea55f0572a4d68a43abc726fd0c2e87bc24465",
+    "02-prototype/app/test_ui.mjs": "aa4fc91794476162545edf751b59fd9a4c92d6617670eeac965489e99175992f",
+    "02-prototype/app/test_use_cases.mjs": "b5badf26329c68e56eecdcc05d76804551db1b8487e6020e40404cea096c25f7",
+    "02-prototype/app/test_use_cases.py": "c6650d85beb77479c7a83f130cc0ccce7b0bf034f485187ca32465f335a9b7a4",
+    "02-prototype/app/test_verification.py": "083b060d614de8c4a5716fe6b0ec5c4a5a3a7e08b6db9793a535293e203a58cc",
+    "02-prototype/app/test_workspace_controls.mjs": "d2587d4b7e47a3593306c1ff3454e774a33c452d90eb597bcda213416732346e",
+    "02-prototype/app/ui/app.js": "32a01167e7d2712348f674f1df6ed1d6bb0a7709aeedb7f9516c02cb97c83548",
+    "02-prototype/app/ui/boot.js": "c9f2a4f834fa766c9c618e7b5a9e8735f9640dfd32b6ce68abb650224e6c265a",
+    "02-prototype/app/ui/comments.js": "13c3995e30a5c33359447791081a8d3cae03c729b15049520d8b23ef6b1fbb4f",
+    "02-prototype/app/ui/completion.js": "38198a941dfe72af12d71763108614824a0feb8b16e06d15c2d88c5f6960dc69",
+    "02-prototype/app/ui/connections.js": "7e3be3484df13af76e8222816c6a56d1e9d348bd9cfa5a2ccd31442de3dbc679",
+    "02-prototype/app/ui/format.js": "193919989b8acdbde6de58a04139b67b98e37a1194f61256bf9daf2714c1e998",
+    "02-prototype/app/ui/handoff.css": "59b73ff7dbac93eb784d93790070353158cee007b3196374359b0ec0ddee3138",
+    "02-prototype/app/ui/index.html": "2f04781853cbe6a13401277c2ff8eae21fae3d39f2b4e9a2ee36fe8d27a787bf",
+    "02-prototype/app/ui/lifecycle.css": "5a8f2ae7b70df5ea344a23507cc7d165f7bbe358d6701165c10bfffac825e2f3",
+    "02-prototype/app/ui/logo.svg": "5c8c2f6862141443d2d0cc52aa53855ab179e2b20e0cbec850686e0fab39bba8",
+    "02-prototype/app/ui/prd-views.css": "b6faac9bfde4e213358839ac295abe1340761c4b11c3aeaf446295ffa6e4bd86",
+    "02-prototype/app/ui/prd-views.js": "a27dc2247b7e356cf24a19b919e5a142bd91c98499e305e9a8a12a7fdeaf05c7",
+    "02-prototype/app/ui/requirement-status.js": "0ebfa52b4245886713292faeedd2005e86106c0337a6e1a4253c64f63fe5b326",
+    "02-prototype/app/ui/style.css": "17f2815cd8a2cae8fa06a3cd870a386690fc980c57041f347e9bb62eb820ea2a",
+    "02-prototype/app/ui/theme.css": "f282229163cac4455646df6555ae57b22592a0a93ca2f534ab92f50c588be4ff",
+    "02-prototype/app/ui/use-cases.js": "025be4c16563810ccd69821dde13242e4436640035bf85c5573d6060c2e4aa08",
+    "02-prototype/app/ui/workspace-controls.js": "ad4099db53acc68b9a42c6be9187a2165101da519a5180b92ac41eee18e5d888",
+    "02-prototype/app/use_cases.py": "82b1e4602da29c06584fb324bb332a3105170a77455464bd3cc2ab3498867a4a",
+    "02-prototype/app/verification.py": "9b21cf782bff7f475dc80294e0f628260eeb8df5eca060e95f8ba93772e3c31e",
+    "05-evals/_tooling/check-human-rubric.py": "f79944310ebd2052e6d63e8ae7107a15c19fac7db3994e3ebab908f335efb1c7",
+    "05-evals/human-rubric.html": "7a8d16e9bf16b4bdba715c9f8ee7088df88a51e3585a7d171ae7aebd071eb440",
+    "05-evals/human-rubric.md": "79b6c644a9e8dd8e378beb12830f8cc987b864c4d4c23dbc480919f9b94bf37e"
+  }
+}

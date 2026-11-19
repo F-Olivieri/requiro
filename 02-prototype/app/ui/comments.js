@@ -31,7 +31,7 @@ export function selectedRequirementAnchor(container, selection = container.owner
   return {requirementId, anchor: {field: name, start, end, quote, sourceText}};
 }
 
-export async function openComments({doc, requirementId, anchor, browse = false, api, consent}) {
+export async function openComments({doc, requirementId, anchor, browse = false, api}) {
   const base = `/api/prds/${encodeURIComponent(doc.id)}/comments`;
   let data = await api(base);
   if (data.documentId !== doc.id || !Array.isArray(data.threads)) throw new Error('The comments do not match this PRD. Reopen it and try again.');
@@ -93,16 +93,15 @@ export async function openComments({doc, requirementId, anchor, browse = false, 
     if (typeof focus.start === 'number' && typeof focus.end === 'number') target.setSelectionRange(focus.start, focus.end, focus.direction);
   }
   function controls() {
-    const writable = consent() && !busy;
+    const writable = !busy;
     close.disabled = busy;
     author.disabled = text.disabled = suggestion.disabled = busy;
-    author.readOnly = text.readOnly = suggestion.readOnly = !consent();
     compose.hidden = !current() && !canStart() && !dirty();
     post.textContent = current() ? 'Post reply' : 'Post comment';
     post.disabled = !writable || !author.value.trim() || !(text.value.trim() || suggestion.value.trim()) || (!current() && !canStart());
     for (const button of list.querySelectorAll('button')) button.disabled = busy;
     for (const button of body.querySelectorAll('[data-comment-status]')) button.disabled = !writable || !author.value.trim();
-    hint.textContent = !consent() ? 'Tick the data-use confirmation before posting or changing a discussion.' : !current() && !canStart() && dirty() ? 'The saved PRD changed. Copy your unfinished text, then reopen the saved PRD before starting this comment.' : 'A comment or suggested wording is enough. Posting does not change the PRD or its delivery review.';
+    hint.textContent = !current() && !canStart() && dirty() ? 'The saved PRD changed. Copy your unfinished text, then reopen the saved PRD before starting this comment.' : 'A comment or suggested wording is enough. Posting does not change the PRD or its delivery review.';
   }
   function threadButton(label, id) {
     const button = el('button', `comments-item${id === selectedId ? ' active' : ''}`, label); button.type = 'button';
@@ -151,7 +150,7 @@ export async function openComments({doc, requirementId, anchor, browse = false, 
       const status = el('button', 'button', thread.status === 'Resolved' ? 'Reopen discussion' : 'Resolve discussion'); status.type = 'button'; status.setAttribute('data-comment-status', 'true');
       status.setAttribute('data-comment-focus', `status:${thread.id}`);
       status.addEventListener('click', () => perform(async () => {
-        const updated = await api(`${base}/${encodeURIComponent(thread.requirementId)}/${encodeURIComponent(thread.id)}`, 'PUT', {expectedRevision: thread.revision, status: thread.status === 'Resolved' ? 'Open' : 'Resolved', author: author.value.trim(), privacyConfirmed: true});
+        const updated = await api(`${base}/${encodeURIComponent(thread.requirementId)}/${encodeURIComponent(thread.id)}`, 'PUT', {expectedRevision: thread.revision, status: thread.status === 'Resolved' ? 'Open' : 'Resolved', author: author.value.trim()});
         replaceThread(updated); render();
       }));
       body.append(status);
@@ -181,7 +180,7 @@ export async function openComments({doc, requirementId, anchor, browse = false, 
     } finally { refreshing = false; }
   }
   async function perform(task) {
-    if (busy || !consent() || !author.value.trim()) return;
+    if (busy || !author.value.trim()) return;
     busy = true; message(''); controls();
     try { await task(); }
     catch (error) {
@@ -192,7 +191,7 @@ export async function openComments({doc, requirementId, anchor, browse = false, 
     if (post.disabled) return;
     return perform(async () => {
       const thread = current();
-      const payload = {author: author.value.trim(), text: text.value, suggestion: suggestion.value, privacyConfirmed: true};
+      const payload = {author: author.value.trim(), text: text.value, suggestion: suggestion.value};
       const updated = thread
         ? await api(`${base}/${encodeURIComponent(thread.requirementId)}/${encodeURIComponent(thread.id)}/replies`, 'POST', payload)
         : await api(`${base}/${encodeURIComponent(requirementId)}`, 'POST', {...payload, expectedPrdRevision: doc.revision, anchor});

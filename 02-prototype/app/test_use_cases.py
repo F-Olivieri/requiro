@@ -21,7 +21,7 @@ class UseCaseTests(unittest.TestCase):
         self.target = self.create('Fictional workshop', 'A participant signs up.')
 
     def create(self, title, description):
-        doc = self.store.create(title, True)
+        doc = self.store.create(title)
         doc['sections']['useCases'] = 'UC-01: ' + description
         doc['sections']['requirements'] = [{**requirement(), 'appliesTo': 'UC-01'}]
         return self.store.mutate(doc['id'], doc['revision'], candidate=doc)
@@ -40,7 +40,7 @@ class UseCaseTests(unittest.TestCase):
         self.assertEqual(self.store.get(doc['id']), doc)
 
     def test_import_keeps_pinned_source_meaning_across_colliding_codes(self):
-        result = self.store.import_requirements(self.target['id'], self.target['revision'], self.source['id'], self.source['revision'], ['R-001'], True)
+        result = self.store.import_requirements(self.target['id'], self.target['revision'], self.source['id'], self.source['revision'], ['R-001'])
         target = result['doc']
         labels = self.store.use_case_context(target)['labels']
         self.assertEqual(labels['R-001']['label'], 'A participant signs up.')
@@ -51,7 +51,7 @@ class UseCaseTests(unittest.TestCase):
         self.store.mutate(changed['id'], changed['revision'], candidate=changed)
         self.assertEqual(self.store.use_case_context(target)['labels']['R-002']['label'], 'A member borrows a tool.')
         again = self.create('Fictional third PRD', 'A member views a list.')
-        nested = self.store.import_requirements(again['id'], again['revision'], target['id'], target['revision'], ['R-002'], True)['doc']
+        nested = self.store.import_requirements(again['id'], again['revision'], target['id'], target['revision'], ['R-002'])['doc']
         self.assertEqual(self.store.use_case_context(nested)['labels']['R-002']['label'], 'A member borrows a tool.')
         target['sections']['requirements'][1]['appliesTo'] = 'A participant signs up.'
         edited = self.store.mutate(target['id'], target['revision'], candidate=target)
