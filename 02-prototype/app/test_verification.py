@@ -1,6 +1,7 @@
 """Synthetic completion evidence, stale-review, export, and HTTP boundary checks."""
 
 import copy
+import base64
 import http.client
 import io
 import json
@@ -53,6 +54,88 @@ class VerificationTests(unittest.TestCase):
             operation()
         self.assertEqual(caught.exception.status, status)
 
+    def complete_all(self):
+        for req in self.doc['sections']['requirements']:
+            item = self.verification.update(self.doc['id'], req['id'], {
+                'expectedPrdRevision': self.doc['revision'], 'expectedRevision': 0,
+                'owners': ['Test engineer'], 'proof': 'Fictional proof for ' + req['id']})
+            self.verification.update(self.doc['id'], req['id'], {
+                'expectedPrdRevision': self.doc['revision'], 'expectedRevision': item['revision'],
+                'status': 'Complete', 'reviewer': 'Example reviewer', 'notes': 'Fictional review.'}, review=True)
+
+    def test_document_report_escapes_text_and_keeps_all_current_proof(self):
+        self.doc['title'] = '<script>alert("title")</script>'
+        self.doc['sections']['requirements'][0]['behavior'] = '<img src=x onerror=alert(1)>'
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        item = self.update(proof='<script>alert("proof")</script>\nCurrent proof line two.')
+        before = self.verification.get(self.doc['id'])
+        history = self.verification.history(self.doc['id'], 'R-001')
+        result = self.verification.document_report(self.doc['id']).decode()
+        self.assertIn('&lt;script&gt;', result)
+        self.assertIn('&lt;img src=x onerror=alert(1)&gt;', result)
+        self.assertNotIn('<script>', result)
+        self.assertNotIn('<img ', result)
+        self.assertIn('Current proof line two.', result)
+        self.assertIn('Delivery review has gaps.', result)
+        self.assertNotIn('<h1>Completed requirements report', result)
+        self.assertIn('@media print', result)
+        self.assertIn(f'Saved PRD v{self.doc["revision"]}', result)
+        for req in self.doc['sections']['requirements']:
+            self.assertIn(req['id'], result)
+            self.assertIn(req['acceptance'], result)
+        self.assertEqual(self.verification.get(self.doc['id']), before)
+        self.assertEqual(self.verification.history(self.doc['id'], 'R-001'), history)
+
+    def test_document_report_embeds_original_attachments_and_zip_uses_relative_links(self):
+        item = self.update()
+        contents = [b'FIRST\x00FICTIONAL_PROOF', b'SECOND_FICTIONAL_PROOF']
+        for content in contents:
+            item = self.verification.attach(self.doc['id'], 'R-001', self.doc['revision'], item['revision'], 'proof [one] (local).txt', content)
+        html = self.verification.document_report(self.doc['id']).decode()
+        for content in contents:
+            self.assertIn('data:application/octet-stream;base64,' + base64.b64encode(content).decode(), html)
+        with zipfile.ZipFile(io.BytesIO(self.verification.report(self.doc['id']))) as bundle:
+            self.assertIn('delivery-review.md', bundle.namelist())
+            self.assertIn('prd.md', bundle.namelist())
+            html = bundle.read('report.html').decode()
+            self.assertNotIn('data:application/octet-stream', html)
+            for path in [name for name in bundle.namelist() if name.startswith('attachments/')]:
+                self.assertIn('href="' + quote(path) + '"', html)
+            self.assertEqual({bundle.read(path) for path in bundle.namelist() if path.startswith('attachments/')}, set(contents))
+
+    def test_completed_document_report_rechecks_empty_pending_and_changed_evidence(self):
+        empty = self.store.create('Fictional empty requirements')
+        for method in (self.verification.document_report, self.verification.report):
+            self.assert_rejected(409, lambda m=method: m(empty['id'], completed=True))
+            self.assert_rejected(409, lambda m=method: m(self.doc['id'], completed=True))
+        self.complete_all()
+        before = self.store.get(self.doc['id'])
+        reviews = self.verification.get(self.doc['id'])
+        result = self.verification.document_report(self.doc['id'], completed=True).decode()
+        self.assertIn('<h1>Completed requirements report:', result)
+        self.assertEqual(self.store.get(self.doc['id']), before)
+        self.assertEqual(self.verification.get(self.doc['id']), reviews)
+        self.update(reviews['items'][0]['revision'], proof='New fictional evidence needs review.')
+        for method in (self.verification.document_report, self.verification.report):
+            self.assert_rejected(409, lambda m=method: m(self.doc['id'], completed=True))
+        ordinary = self.verification.document_report(self.doc['id']).decode()
+        self.assertIn('New fictional evidence needs review.', ordinary)
+        self.assertIn('Needs recheck', ordinary)
+        self.assertIn('Delivery review has gaps.', ordinary)
+
+    def test_completed_report_rejects_changed_requirement_and_legacy_missing_review_fields(self):
+        self.complete_all()
+        self.doc['sections']['requirements'][0]['acceptance'] = 'A changed fictional acceptance criterion.'
+        self.doc = self.store.mutate(self.doc['id'], self.doc['revision'], candidate=self.doc)
+        self.assert_rejected(409, lambda: self.verification.document_report(self.doc['id'], completed=True))
+        with self.store.connection() as db:
+            raw = json.loads(db.execute('SELECT data FROM verification WHERE document_id=? AND requirement_id=?', (self.doc['id'], 'R-002')).fetchone()[0])
+            raw['reviewer'] = ''
+            db.execute('UPDATE verification SET data=? WHERE document_id=? AND requirement_id=?', (json.dumps(raw), self.doc['id'], 'R-002'))
+        ordinary = self.verification.document_report(self.doc['id']).decode()
+        self.assertIn('reviewer role', ordinary)
+        self.assert_rejected(409, lambda: self.verification.report(self.doc['id'], completed=True))
+
     def test_defaults_cover_current_requirements_and_evidence_does_not_change_prd(self):
         before = self.store.get(self.doc['id'])
         history = self.store.history(self.doc['id'])
@@ -66,6 +149,17 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(self.store.get(self.doc['id']), before)
         self.assertEqual(self.store.history(self.doc['id']), history)
         self.assertEqual(Verification(Store(self.directory.name)).get(self.doc['id']), self.verification.get(self.doc['id']))
+
+    def test_completed_reports_reject_invalid_legacy_review_date(self):
+        self.complete_all()
+        self.verification.document_report(self.doc['id'], completed=True)
+        with self.store.connection() as db:
+            row = db.execute('SELECT data FROM verification WHERE document_id=? AND requirement_id=?', (self.doc['id'], 'R-001')).fetchone()
+            raw = json.loads(row[0]); raw['reviewedAt'] = 'not-a-date'
+            db.execute('UPDATE verification SET data=? WHERE document_id=? AND requirement_id=?', (json.dumps(raw), self.doc['id'], 'R-001'))
+        for report in (self.verification.document_report, self.verification.report):
+            self.assert_rejected(409, lambda: report(self.doc['id'], completed=True))
+        self.assertIn('review date', self.verification.document_report(self.doc['id']).decode())
 
     def test_verdict_needs_explicit_reviewer_owner_and_proof(self):
         self.assert_rejected(422, lambda: self.review(0))

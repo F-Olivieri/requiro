@@ -111,3 +111,24 @@
   .prd-view-review { display:none }
   .prd-view-table-behavior { display:block; overflow:visible }
 }
+
+.prd-comment-highlight { background: #ffe08a; color: #26200e; border-bottom: 2px solid #8a6500; border-radius: 2px; }
+:root[data-theme="dark"] .prd-comment-highlight { background: #6b4c12; color: #fff4cb; border-color: #efc568; }
+.prd-comment-marker { display: inline-flex; padding: 2px 5px; margin-inline-start: 4px; vertical-align: baseline; min-width: 28px; min-height: 28px; }
+.prd-comment-selection[data-selection-popup="true"] { position: fixed; z-index: 40; width: max-content; max-width: calc(100vw - 16px); padding: 10px 14px; background: var(--card); color: var(--ink); border: 2px solid var(--accent); box-shadow: var(--shadow); }
+.prd-requirement-tools { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 6px; }
+.prd-view [data-requirement-id]:focus { outline: 2px solid var(--accent); outline-offset: 4px; }
+.requirement-links-dialog { width: min(1180px, calc(100vw - 24px)); max-width: none; }
+.requirement-links-graph { overflow-x: auto; padding: 12px; border: 1px solid var(--line); border-radius: 10px; margin: 16px 0; }
+.requirement-links-graph svg { display: block; }
+.requirement-links-graph g:focus { outline: 2px solid var(--accent); }
+.requirement-links-form { display: grid; grid-template-columns: 1fr 160px 1fr auto; gap: 12px; align-items: end; }
+.requirement-links-form label { min-width: 0; }
+.requirement-links-form select { width: 100%; min-width: 0; }
+.requirement-links-context { margin: 24px 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; }
+.requirement-links-list { padding-left: 22px; }
+.requirement-link-row { padding: 8px 0; overflow-wrap: anywhere; }
+.requirement-link-row .text-button { text-align: left; white-space: normal; margin-right: 8px; }
+.requirement-text-link { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.requirement-text-link.missing { color: var(--ink); text-decoration: underline wavy; }
+@media (max-width: 700px) { .requirement-links-form { grid-template-columns: 1fr; } }

@@ -28,7 +28,7 @@ const windowEvents = {};
 let printed = 0;
 const ctx = vm.createContext({
   useCaseText, fileSlug, formatDate: formatDateTime, localStorage, console, JSON, Blob, URL: {createObjectURL: () => 'blob:fictional', revokeObjectURL() {}},
-  setTimeout: callback => timers.push(callback), clearTimeout() {},
+  setTimeout: callback => timers.push(callback), clearTimeout() {}, setInterval() { return 0; },
   window: {addEventListener: (name, handler) => { windowEvents[name] = handler; }, print: () => { printed++; }},
 });
 const source = readFileSync(new URL('./ui/app.js', import.meta.url), 'utf8');
@@ -63,7 +63,7 @@ ctx.api = async (path, method = 'GET', data) => {
   throw new Error(`Unexpected request ${path}`);
 };
 ctx.initWorkspaceControls = () => {};
-vm.runInContext('renderLibrary=()=>{}; renderDocument=()=>{}; renderEditor=()=>{}; renderPreview=()=>{}; refreshVerification=()=>{}; refreshUseCases=()=>{}; refreshLibrary=async()=>{}; storedProposal=()=>null; realCommentCounts=refreshCommentCounts; refreshCommentCounts=async()=>{};', ctx);
+vm.runInContext('renderLibrary=()=>{}; renderDocument=()=>{}; renderEditor=()=>{}; renderPreview=()=>{}; refreshVerification=()=>{}; refreshUseCases=()=>{}; refreshRequirementLinks=()=>{}; refreshLibrary=async()=>{}; storedProposal=()=>null; realCommentCounts=refreshCommentCounts; refreshCommentCounts=async()=>{};', ctx);
 const run = code => vm.runInContext(code, ctx);
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const fields = ['problem', 'users', 'outcomes', 'useCases', 'scope', 'nonGoals', 'inputsOutputs', 'quality', 'metrics', 'risks', 'decisions', 'evidence'];

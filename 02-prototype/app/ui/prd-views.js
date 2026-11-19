@@ -1,6 +1,7 @@
 import {selectedRequirementAnchor} from './comments.js';
 import {useCaseInfo} from './use-cases.js';
 import {formatDateTime} from './format.js';
+import {appendRequirementText} from './requirement-links.js';
 
 const selectionCleanups = new WeakMap();
 const sections = [
@@ -30,17 +31,39 @@ function badge(status, onClick, label) {
 }
 
 const priorityText = req => `${req.priority}${req.proposed ? ' (not yet agreed)' : ''}`;
-export function renderPrdView(container, {doc, mode, verification = null, useCasesContext = null, savedRevision = doc.revision, savedDoc = null, commentCounts = null, onReview, onComment, onEditSection}) {
+export function renderPrdView(container, {doc, mode, verification = null, useCasesContext = null, savedRevision = doc.revision, savedDoc = null, commentCounts = null, commentThreads = [], linksSnapshot = null, onOpenRequirement, onConnections, onProof, onReview, onComment, onEditSection}) {
   if (!['document', 'table'].includes(mode)) throw new Error('Choose Document or Table view.');
   selectionCleanups.get(container)?.();
   const selectionButtons = [];
   let selectedAnchor = null;
   function markField(node, req, field) {
     if (req[field]?.trim()) {
-      node.setAttribute('data-comment-requirement', req.id);
-      node.setAttribute('data-comment-field', field);
+      const content = el('span');
+      content.setAttribute('data-comment-requirement', req.id);
+      content.setAttribute('data-comment-field', field);
+      appendRequirementText(content, req[field], {doc, field, snapshot: linksSnapshot, onOpenRequirement});
+      const threads = commentThreads.filter(thread => thread.requirementId === req.id && thread.status === 'Open' && thread.anchorCurrent !== false && thread.anchor.field === field && thread.anchor.sourceText === req[field]);
+      highlightCommentRanges(content, threads.map(thread => thread.anchor));
+      node.replaceChildren(content);
+      if (onComment) for (const thread of threads) {
+        const icon = el('button', 'text-button prd-comment-marker', '💬'); icon.type = 'button';
+        icon.setAttribute('aria-label', `Open comment on ${req.id}: ${thread.anchor.quote}`);
+        icon.setAttribute('data-focus-key', `thread:${thread.id}`);
+        icon.title = thread.anchor.quote;
+        icon.addEventListener('click', () => onComment({requirementId: req.id, browse: true, threadId: thread.id}));
+        node.append(icon);
+      }
     }
     return node;
+  }
+  function extraActions(req) {
+    const actions = el('div', 'prd-requirement-tools');
+    for (const [label, callback, key] of [['Edit proof', onProof, 'proof'], ['Links & graph', onConnections, 'links']]) if (callback) {
+      const button = el('button', 'text-button', label); button.type = 'button';
+      button.setAttribute('aria-label', `${label} for ${req.id}`); button.setAttribute('data-focus-key', `${key}:${req.id}`);
+      button.addEventListener('click', () => callback(req.id)); actions.append(button);
+    }
+    return actions;
   }
   function commentControls(req) {
     const actions = el('div', 'prd-comment-actions');
@@ -161,11 +184,13 @@ export function renderPrdView(container, {doc, mode, verification = null, useCas
       if (!doc.sections.requirements.length) requirements.append(el('p', 'prd-view-text', 'No requirements documented.'));
       for (const req of doc.sections.requirements) {
         const card = el('section', 'prd-view-requirement');
+        card.setAttribute('data-requirement-id', req.id); card.setAttribute('data-focus-key', `requirement:${req.id}`); card.tabIndex = -1;
         const heading = el('div', 'prd-view-requirement-heading');
         heading.append(el('h4', '', `${req.id} · ${priorityText(req)}`), statusControl(req));
         card.append(heading, markField(el('p', 'prd-view-text prd-view-behavior', text(req.behavior)), req, 'behavior'), requirementDetails(req));
         if (onReview) card.append(reviewButton(req));
         if (onComment) card.append(commentControls(req));
+        if (onProof || onConnections) card.append(extraActions(req));
         requirements.append(card);
       }
       view.append(requirements);
@@ -182,6 +207,7 @@ export function renderPrdView(container, {doc, mode, verification = null, useCas
     const body = el('tbody');
     for (const req of doc.sections.requirements) {
       const row = el('tr');
+      row.setAttribute('data-requirement-id', req.id); row.setAttribute('data-focus-key', `requirement:${req.id}`); row.tabIndex = -1;
       const id = el('th', '', req.id); id.scope = 'row'; row.append(id);
       const requirement = el('td');
       requirement.append(markField(el('p', 'prd-view-text prd-view-table-behavior', text(req.behavior)), req, 'behavior'));
@@ -197,6 +223,7 @@ export function renderPrdView(container, {doc, mode, verification = null, useCas
         const action = el('td', 'prd-view-actions');
         if (onReview) action.append(reviewButton(req, true));
         if (onComment) action.append(commentControls(req));
+        if (onProof || onConnections) action.append(extraActions(req));
         row.append(action);
       }
       body.append(row);
@@ -217,10 +244,42 @@ export function renderPrdView(container, {doc, mode, verification = null, useCas
       for (const {button, requirementId} of selectionButtons) {
         const valid = found?.requirementId === requirementId;
         button.hidden = !valid; button.disabled = !valid; button.setAttribute('data-selection-valid', String(valid));
+        if (valid) {
+          const rect = owner.getSelection?.()?.getRangeAt(0)?.getBoundingClientRect?.();
+          if (rect && button.style) {
+            button.setAttribute('data-selection-popup', 'true');
+            button.style.left = `${Math.max(8, Math.min(rect.left, (owner.documentElement?.clientWidth || 1000) - 230))}px`;
+            button.style.top = `${Math.max(8, Math.min(rect.bottom + 8, (owner.documentElement?.clientHeight || 800) - 52))}px`;
+          }
+        }
       }
     };
     owner.addEventListener?.('selectionchange', updateSelection);
-    selectionCleanups.set(container, () => owner.removeEventListener?.('selectionchange', updateSelection));
+    owner.addEventListener?.('scroll', updateSelection, true);
+    selectionCleanups.set(container, () => {
+      owner.removeEventListener?.('selectionchange', updateSelection);
+      owner.removeEventListener?.('scroll', updateSelection, true);
+    });
     updateSelection();
   }
+}
+
+export function highlightCommentRanges(container, ranges) {
+  if (!ranges.length) return;
+  let offset = 0;
+  const visit = parent => {
+    for (const child of [...(parent.childNodes || [])]) {
+      if (child.nodeType !== 3) { visit(child); continue; }
+      const value = child.textContent, start = offset; offset += value.length;
+      const cuts = [...new Set([0, value.length, ...ranges.flatMap(range => [range.start - start, range.end - start]).filter(n => n > 0 && n < value.length)])].sort((a, b) => a - b);
+      const wrapper = el('span');
+      for (let i = 1; i < cuts.length; i++) {
+        const from = cuts[i - 1], to = cuts[i];
+        const active = ranges.some(range => range.start <= start + from && range.end >= start + to);
+        wrapper.append(el(active ? 'mark' : 'span', active ? 'prd-comment-highlight' : '', value.slice(from, to)));
+      }
+      parent.replaceChild(wrapper, child);
+    }
+  };
+  visit(container);
 }

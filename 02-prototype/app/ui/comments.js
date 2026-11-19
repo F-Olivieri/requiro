@@ -31,13 +31,13 @@ export function selectedRequirementAnchor(container, selection = container.owner
   return {requirementId, anchor: {field: name, start, end, quote, sourceText}};
 }
 
-export async function openComments({doc, requirementId, anchor, browse = false, api}) {
+export async function openComments({doc, requirementId, anchor, browse = false, threadId, api}) {
   const base = `/api/prds/${encodeURIComponent(doc.id)}/comments`;
   let data = await api(base);
   if (data.documentId !== doc.id || !Array.isArray(data.threads)) throw new Error('The comments do not match this PRD. Reopen it and try again.');
   let threads = data.threads;
   const visibleThreads = () => threads.filter(thread => !requirementId || thread.requirementId === requirementId);
-  let selectedId = anchor && !browse ? null : visibleThreads()[0]?.id ?? null;
+  let selectedId = visibleThreads().find(thread => thread.id === threadId)?.id ?? (anchor && !browse ? null : visibleThreads()[0]?.id ?? null);
   let busy = false;
   let refreshing = false;
   let closed = false;

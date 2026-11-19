@@ -73,7 +73,7 @@ assert.ok(buildMarkdown(doc).includes('R-001'), 'Preview must preserve stable re
 // Loading the script without a document skips its normal bootstrap; inject only
 // the controls used when a saved library exists but no PRD has been opened yet.
 const source = readFileSync(new URL('./ui/app.js', import.meta.url), 'utf8');
-const useCasesContext = vm.createContext({});
+const useCasesContext = vm.createContext({setInterval() { return 0; }});
 vm.runInContext(source.replace(/^import .*;\n/gm, '').replace(/^export function /gm, 'function '), useCasesContext);
 const useCaseLoads = [], useCaseUpdates = [], useCaseMessages = [];
 useCasesContext.document = {querySelector: () => ({})};
@@ -96,7 +96,7 @@ const staleUseCases = vm.runInContext('refreshUseCases()', useCasesContext);
 vm.runInContext('state.doc={...state.doc,id:"other"}; state.saved=clone(state.doc);', useCasesContext);
 useCaseLoads[2].resolve(namedContext); await staleUseCases;
 assert.equal(useCaseUpdates.length, 1, 'Another PRD cannot receive an earlier PRD’s labels.');
-const context = vm.createContext({});
+const context = vm.createContext({setInterval() { return 0; }});
 context.useCaseText = useCaseText;
 vm.runInContext(source.replace(/^import .*;\n/gm, '').replace(/^export function /gm, 'function '), context);
 const controls = new Map();
@@ -248,7 +248,7 @@ vm.runInContext('renderLibrary()', context);
 assert.equal(library.children[0].textContent, 'No PRDs match this search.');
 
 // 2026-11-09: unsent chat questions must survive saves and failed packet preparation.
-const composeContext = vm.createContext({});
+const composeContext = vm.createContext({setInterval() { return 0; }});
 composeContext.useCaseText = useCaseText;
 vm.runInContext(source.replace(/^import .*;\n/gm, '').replace(/^export function /gm, 'function '), composeContext);
 const composeControls = new Map();
@@ -395,7 +395,7 @@ class HistoryNode {
   async click() { if (!this.disabled) for (const handler of this.listeners.click || []) await handler(); }
   focus() {}
 }
-const historyContext = vm.createContext({});
+const historyContext = vm.createContext({setInterval() { return 0; }});
 historyContext.useCaseText = useCaseText;
 historyContext.formatDate = formatDateTime;
 vm.runInContext(source.replace(/^import .*;\n/gm, '').replace(/^export function /gm, 'function '), historyContext);

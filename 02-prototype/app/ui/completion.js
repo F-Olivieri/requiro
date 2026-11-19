@@ -35,9 +35,18 @@ export async function openCompletion({doc, api, requirementId}) {
   const notice = el('p', 'inline-error'); notice.hidden = true; notice.setAttribute('role', 'alert');
   const done = el('p', 'completion-saved'); done.hidden = true; done.setAttribute('role', 'status');
   const footer = el('div', 'completion-footer');
-  const report = el('a', 'button', 'Download delivery report with proofs');
+  const viewReport = el('a', 'button', 'View delivery report');
+  viewReport.href = `${base}/delivery-report`; viewReport.target = '_blank'; viewReport.rel = 'noopener';
+  const report = el('a', 'button', 'Download with proofs');
   report.href = `${base}/completion-report`; report.download = '';
-  footer.append(el('p', 'muted small', 'ZIP: saved Markdown report and original proof attachments.'), report);
+  const completedReport = el('a', 'button', 'Completed report');
+  completedReport.href = `${base}/completed-report`; completedReport.target = '_blank'; completedReport.rel = 'noopener';
+  const completeSnapshot = items => doc.sections.requirements.length > 0 && doc.sections.requirements.every(req => {
+    const value = items.find(item => item.requirementId === req.id);
+    return value?.status === 'Verified' && value.owners.length > 0 && value.owners.every(documentedText)
+      && [value.proof, value.reviewer, value.reviewedAt, req.behavior, req.acceptance].every(value => typeof value === 'string' && documentedText(value));
+  });
+  footer.append(el('p', 'muted small', 'Read or print the offline document report. Download includes HTML, Markdown, and original proof files. Completed report is available when every requirement is Complete with its required review information.'), viewReport, report, completedReport);
   dialog.append(heading, identity, explanation, summary, layout, notice, done, footer);
   document.body.append(dialog);
   let selected = doc.sections.requirements.find(req => req.id === requirementId)?.id ?? doc.sections.requirements[0]?.id;
@@ -61,7 +70,8 @@ export async function openCompletion({doc, api, requirementId}) {
   function controls() {
     close.disabled = busy;
     for (const button of list.querySelectorAll('button')) button.disabled = busy;
-    report.setAttribute('aria-disabled', String(busy || stale));
+    for (const action of [viewReport, report, completedReport]) action.setAttribute('aria-disabled', String(busy || stale || dirty()));
+    completedReport.hidden = !completeSnapshot([...rows.values()]);
     if (!inputs) return;
     const canEdit = !busy && !stale;
     const req = doc.sections.requirements.find(item => item.id === selected);
@@ -213,10 +223,11 @@ export async function openCompletion({doc, api, requirementId}) {
       message(stale ? 'The PRD or review changed elsewhere. Your unsaved text is preserved. Copy it before closing, then reopen the current saved PRD to review again.' : error.message);
     } finally { busy = false; controls(); }
   }
-  report.addEventListener('click', async event => {
+  for (const action of [viewReport, report, completedReport]) action.addEventListener('click', async event => {
     event.preventDefault();
     if (busy || stale) return;
-    if (dirty()) { message('Save owners and proof and record or discard reviewer notes before downloading. The report uses saved reviews only.'); return; }
+    if (dirty()) { message('Save owners and proof and record or discard reviewer notes before opening a report. Reports use saved reviews only.'); return; }
+    if (action === completedReport && completedReport.hidden) return;
     busy = true; message(''); controls();
     try {
       const current = await api(`${base}/verification`);
@@ -224,7 +235,13 @@ export async function openCompletion({doc, api, requirementId}) {
         stale = true;
         throw new Error('This PRD changed. Close Delivery review and reopen the PRD before downloading the report.');
       }
-      const download = el('a'); download.href = report.href; download.download = ''; document.body.append(download); download.click(); download.remove();
+      for (const item of current.items) rows.set(item.requirementId, item);
+      renderOverview(); renderDetail();
+      if (action === completedReport && !completeSnapshot(current.items)) throw new Error('Some requirements now need review. Use the ordinary delivery report to inspect the gaps.');
+      const download = el('a'); download.href = action.href;
+      if (action === report) download.download = '';
+      else { download.target = '_blank'; download.rel = 'noopener'; }
+      document.body.append(download); download.click(); download.remove();
     } catch (error) { message(error.message); }
     finally { busy = false; controls(); }
   });

@@ -12,7 +12,8 @@ to apply and save.
 - [Presentation](final-presentation.html): product overview, prototype, evaluation, and metrics plan.
 - The links below contain the assistant instructions, prototype, information and controls around the model, rules for its actions, and response-scoring guide.
 - [Metrics plan](06-metrics/metrics-plan.md) and [reflection](06-metrics/reflection.md).
-- [Verification evidence](submission/evidence/prototype-verification.json): tests of application behavior and the limits of those checks.
+- [Current feature verification](submission/evidence/feature-expansion-verification.json): automated checks, browser walkthrough, audit findings, and remaining limits.
+- [Earlier prototype verification](submission/evidence/prototype-verification.json): the previous implementation checkpoint.
 
 You review each suggestion before applying it. The metrics plan proposes a
 small trial and the results needed to continue using Requiro; no time saving or
@@ -120,8 +121,8 @@ Complete, To discuss, or Needs work. Add a reviewer and notes where needed, then
 choose **Save status**. **Open delivery review** opens the editor for owners, supporting evidence, and
 attachments. Both views use this same flow.
 When there are unsaved edits, **Save + change** saves the draft before review.
-After the PRD changes, review the saved evidence again and record a new delivery
-decision.
+After a requirement’s wording, acceptance criteria, use case, or intended outcome
+changes, review its evidence again and record a new delivery decision.
 
 Use **Use case** in Guided edit to choose a description from the PRD's use-case
 list. Write one situation per line in **Scope → Use cases**. Choose
@@ -139,9 +140,13 @@ not rewrite the PRD, its approval, or its supporting evidence.
 
 Choose **Comment** on a saved requirement to discuss its whole wording; no
 selection is needed. To discuss a few words, select them in the requirement,
-acceptance criteria, use case, or intended outcome, then choose **Comment on
-selected text**. In Table view, expand a row's details to select its full text.
+acceptance criteria, use case, or intended outcome, then choose the **Comment on
+selected text** popup beside the selection. In Table view, expand a row's details to select its full text.
 Enter an author label and a comment or suggested wording, then post it.
+
+Open comments highlight their selected words and show a comment icon beside
+the field. Select the icon to open that discussion. Resolved comments remain
+available in **Comments** without highlighting their text.
 
 Use a requirement's **Comments** button to reply, copy suggested wording, or
 resolve and reopen a discussion. The header's **Comments** button shows all
@@ -150,7 +155,7 @@ original quote with a clear warning. Comments and suggestions preserve the PRD,
 approval, and delivery review; use normal editing to apply wording changes.
 
 Browser sessions connected to the same running app share discussions and receive
-new messages while comments are open. The app displays the author label entered by the commenter; it does not verify
+new messages while comments are open. Incoming replies preserve unfinished text. Open-comment highlights refresh in the document when text is not selected. The app displays the author label entered by the commenter; it does not verify
 their identity. The
 app can run on your computer or in a private Codespace. The Codespace owner can
 access it from another computer after signing in to GitHub. Access for other
@@ -191,9 +196,37 @@ when imported. Copies can be edited independently; later source changes never
 update them automatically. Project links and reuse relationships stay in the
 local workspace; standalone JSON exports contain the document, not these links.
 
+## Connect requirements and follow backlinks
+
+Choose **Links & graph** on a requirement, or **More → Requirement links & graph**.
+Select two requirements and choose **Connected to** or **Depends on**. A connection
+is shown from both requirements. A dependency points from the requirement that
+needs another requirement to its prerequisite. Remove a link to disconnect them.
+These actions preserve the wording, saved PRD version, and approval.
+
+The graph shows all saved requirements across the library, including ones without
+links. Blue lines show connections, orange arrows show dependencies, and dashed
+green arrows show references in requirement text. Select a node to open its
+requirement. The list beneath the graph provides the same navigation and
+relationships. **Reload graph** loads changes made in another session.
+
+In requirement text, write `[[R-002]]` to reference a requirement in the same PRD.
+For another PRD, use `[[PRD-id/R-002]]`, replacing `PRD-id` with the target PRD's
+ID shown in the graph. Save, then follow the link in Document or Table view.
+Missing targets are marked with a wavy underline. **Links & graph** shows the
+selected requirement's outgoing text links and backlinks from other requirements.
+A text link is a reference; it does not create a dependency or change delivery
+status.
+
+Inline references travel with document exports. Explicit connections and
+dependencies stay in the shared workspace database, like project links. When
+copying requirements, references between selected copies use their new IDs;
+references to uncopied requirements continue to point to the source PRD.
+
 ## Verify completed work
 
-Open a PRD and choose **Delivery review**. For each requirement, add engineering
+Choose **Edit proof** beside a requirement, or open the PRD and choose
+**Delivery review**. For each requirement, add engineering
 owners, explain the proof, and attach supporting files where useful. Then record
 the team's delivery decision, reviewer role, and notes. Choose **Mark complete** when the
 team confirms the acceptance criteria are met. Complete requires an engineering
@@ -205,16 +238,24 @@ Owners, proof, and a reviewer can be added later. The flag stays open until the
 team chooses another status and counts as pending in the view and report.
 **Needs work** records that the team found work still needed.
 
-A changed PRD version requires a new delivery review. Changing owners, proof,
+Changes to a requirement’s wording, acceptance criteria, use case, or intended
+outcome require another delivery review. Unrelated edits preserve its verdict. Changing owners, proof,
 or attachments turns Complete or Needs work into Needs recheck; To discuss stays
 until you change it. Earlier proof and review records remain available under
 **Previous reviews**. Delivery review is separate from approval of the PRD's
 wording. It records the team's decision. Requiro does not run the product tests or verify
 that the implementation meets the requirement.
 
-Choose **Download delivery report with proofs**, or **Delivery report with
-proofs** under **Export**, for a ZIP containing the readable report, the saved
-PRD, and the actual attachment files. Pending requirements and gaps remain
+Choose **View delivery report** for a readable document with every current
+requirement, acceptance criteria, owners, proof, reviewer details, and attachment
+links. It works offline and can be printed.
+
+Choose **Download with proofs**, or **Delivery report with proofs** under
+**Export**, for a ZIP containing `report.html`, Markdown reports, the saved PRD,
+and the original proof files. After extracting the ZIP, open `report.html`; its
+links open the accompanying files. **Completed report** becomes available when
+every current requirement is Complete with its required review information.
+The server checks again when the report opens. Pending requirements and gaps remain
 visible in the report. Ordinary PRD JSON/Markdown exports contain the authoring
 document, not the delivery reviews or proof files.
 
@@ -234,10 +275,10 @@ same database, and original proof files are under `data/prds/attachments/`. Save
 reloads. **Export** states what each format includes and leaves out:
 
 - **Markdown**: every section and requirement of the saved version. Leaves out
-  the conversation, comments, delivery reviews, project and reuse links, and
+  the conversation, comments, delivery reviews, project and reuse links, explicit requirement connections, and
   version history.
 - **Requiro JSON**: every section, requirement, and the conversation. Leaves out
-  comments, delivery reviews and proof, project and reuse links, and version
+  comments, delivery reviews and proof, project and reuse links, explicit requirement connections, and version
   history.
 - **Print or save as PDF**: every section and requirement, with unsaved edits
   clearly marked as not saved or approved.
@@ -328,16 +369,7 @@ three text files hold the separate simulated review inputs and proof examples.
 cd 02-prototype/app
 python3 -m unittest -v
 node --check ui/app.js
-node test_ui.mjs
-node test_completion.mjs
-node test_prd_views.mjs
-node test_workspace_controls.mjs
-node test_requirement_status.mjs
-node test_connections.mjs
-node test_comments.mjs
-node test_use_cases.mjs
-node test_lifecycle.mjs
-node test_format.mjs
+node --test test_*.mjs
 ```
 
 The prompt-evaluation cases use fictional inputs. They specify what to check;

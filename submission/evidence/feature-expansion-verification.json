@@ -1,0 +1,88 @@
+{
+  "asOf": "2026-11-19",
+  "scope": "R-055 through R-062: selected-text comments, connections/dependencies, graph, text links/backlinks, proof controls, document reports.",
+  "automated": {
+    "python": {
+      "command": "python3 -B -m unittest discover -p 'test_*.py'",
+      "workingDirectory": "02-prototype/app",
+      "tests": 126,
+      "result": "pass"
+    },
+    "javascript": {
+      "command": "node --test test_*.mjs",
+      "workingDirectory": "02-prototype/app",
+      "testFiles": 12,
+      "result": "pass",
+      "limit": "DOM mocks and real refresh handlers; this is separate from the browser walkthrough."
+    }
+  },
+  "browser": {
+    "browser": "Chrome desktop",
+    "observedViewportWidth": 1336,
+    "data": "Isolated fictional library, two PRDs, generic role labels, one 99-byte proof file.",
+    "checks": [
+      "Select words and open popup at selection",
+      "Post comment, show highlight and icon, open exact thread",
+      "Select and comment inside a clickable reference without navigating",
+      "Highlight follows view switch and keeps raw field text",
+      "Changed source wording retains original discussion without a false highlight",
+      "Add Connected to and Depends on links and inspect distinct graph edges",
+      "Graph includes three saved requirements across two PRDs",
+      "Local inline link navigates and focuses target; target lists backlink",
+      "Cross-PRD inline link opens and focuses the correct target",
+      "Save proof text and upload an attachment",
+      "Mark both fictional requirements Complete; completed report appears",
+      "Open readable HTML report and download ZIP with original proof bytes",
+      "Download embedded standalone proof; downloaded bytes verified",
+      "Change proof; Needs recheck appears, completed action hides, completed URL rejects",
+      "Ordinary report includes latest proof and Needs recheck",
+      "Second session sees same thread and posts reply; incoming reply preserves unfinished draft"
+    ],
+    "result": "pass"
+  },
+  "audit": {
+    "independentAgents": 3,
+    "resolved": [
+      {
+        "issue": "Async response could replace selected DOM while a comment selection was active.",
+        "fix": "Store refreshed data, defer painting during selection, flush after collapse; regression covers four refresh lanes."
+      },
+      {
+        "issue": "Unparseable legacy review dates could pass the completed-report check.",
+        "fix": "Treat unparseable date as a required-information gap; HTML and ZIP regression plus independent HTTP probes pass."
+      },
+      {
+        "issue": "Requirement navigation focus could be removed by subsequent refreshes.",
+        "fix": "Stable requirement focus keys restore focus after repaint."
+      }
+    ],
+    "counterchecks": [
+      "Symmetric duplicate rejection, directed cycles, stale add/remove, missing targets, self-links, invalid inputs",
+      "Host and Origin protection retained",
+      "Consistent snapshots during concurrent document changes",
+      "Copied reference remapping and source qualification",
+      "Escaped HTML, safe attachment paths, duplicate filenames, original attachment bytes",
+      "Nested links/highlights, overlapping ranges, repeated text, emoji and UTF-16 offsets"
+    ]
+  },
+  "limits": [
+    "Chrome desktop only; mobile viewport override did not change the observed viewport, so a real phone layout was not verified.",
+    "No public team hosting or account authentication added; comments share the same running workspace.",
+    "No model quality, real product implementation, or time-saving evaluation performed."
+  ],
+  "sourceSha256": {
+    "02-prototype/app/server.py": "b17f31e84e32dc24be7faf22c67924a1c6e0405e9a4b06dc9c618e21837c547b",
+    "02-prototype/app/prd_store.py": "0ac081d56fa67f5f3183b8e62a0bbd3786861a249641c8bec001f7afa4ba207d",
+    "02-prototype/app/comments.py": "87323c0d833d9c7575e4bbdceb0fce8ca035b1fa99487045e9fc5f19eb6dc340",
+    "02-prototype/app/verification.py": "e01aa547dcf9c8f6a2876a0a99afa0e5532be074d8fb989456a6bd651e6a1054",
+    "02-prototype/app/requirement_links.py": "3f0a0df67f2ad37d3c42184f94913a4515e93e24ce02a8c79cf3c7f8a38ae14a",
+    "02-prototype/app/ui/app.js": "11b73df42957c8c675f7d21049f11c369a56a8e14646726c922496b6dba5b7d4",
+    "02-prototype/app/ui/comments.js": "8a36cd36eb3a1f8031d95402310ff67ddf49ebc843d867902d7edca9e84d6f5f",
+    "02-prototype/app/ui/prd-views.js": "54943c6a7a8a59d877f234d2f803594a68982929d5d1df63e9a997b6947d2145",
+    "02-prototype/app/ui/requirement-links.js": "cc545d677409cfe0ee098077d6285abc7ffac05699e76fcdcba17539bbdc2673",
+    "02-prototype/app/ui/completion.js": "00499923053c22c888282994ce0867d9cda8c1274b2f8369cd7806f75fc02ee9",
+    "02-prototype/app/ui/index.html": "e15f28b013c0a73d7f14b67fdd8079abd71a8ed1adb8770144f7526325fb147b",
+    "02-prototype/app/ui/prd-views.css": "b152b584c834454456aecc9a078fdbb46bf49bb3d497990bec9f97da1b9ff6da",
+    "prd-system/requirements.md": "1ad15ea8c8b5137159a36ceb6c975625b08437cf65047f8490cc925919beb0e8"
+  }
+}

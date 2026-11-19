@@ -23,7 +23,7 @@ EXTENSIONS = {'.md', '.py', '.mjs', '.js', '.html', '.css', '.svg', '.json', '.c
 ROOT_FILES = {'README.md', '.gitignore', 'final-presentation.html'}
 EVIDENCE = {
     'prototype-python-tests.txt', 'prototype-node-tests.json',
-    'rubric-structure-check.txt', 'prototype-verification.json',
+    'rubric-structure-check.txt', 'prototype-verification.json', 'feature-expansion-verification.json',
 }
 BLOCKED = {'data', 'attachments', '.git', '.juno-data', '__pycache__'}
 SCREENSHOTS = {'assets/screenshots/' + name for name in (

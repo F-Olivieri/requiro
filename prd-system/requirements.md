@@ -76,7 +76,7 @@ These are requested Must requirements.
 | --- | --- | --- |
 | R-015 | Use Requiro as the product name throughout the app and its documentation. | The browser title, navigation, chat, import and export labels, downloaded draft filenames, and documentation use Requiro. |
 | R-016 | Show the Requiro logo in the app and browser tab. | The logo is visible beside the product name and in the browser tab. The home link has an accessible name. |
-| R-017 | Rename the existing private repository to requiro and include the renamed app, logo, and documentation. | The repository has the new name, keeps its history, and remains private. Saved PRDs, proof files, and personal or confidential information are excluded. |
+| R-017 | Keep the Requiro app, logo, and documentation in the named repository. Change its visibility only when the owner asks. | The repository keeps its history and the visibility explicitly requested by the owner. Saved PRDs, proof files, and personal or confidential information are excluded. |
 | R-018 | Preserve existing PRDs, revisions, owners, reviews, proof, and attachments when the product name changes. Continue to accept earlier JSON document exports and storage settings. JSON (JavaScript Object Notation) is a structured text format for exchanging document data. | Existing saved records remain available without new identities or revisions. Earlier JSON exports can still be imported as new drafts. |
 
 ## Workspace display
@@ -181,3 +181,27 @@ the same; only their displayed labels may change.
 | R-052 | Keep keyboard focus where the user expects it. | After creating a PRD, focus moves to its first empty field. Closing a dialog returns focus to the control that opened it. |
 | R-053 | Keep requirement displays compact and consistent. | Each requirement shows its status badge once. Empty optional details are summarized rather than listed as repeated Not recorded rows. Table details do not repeat the requirement text. Disabled Edit links look disabled. Comment buttons show the number of open threads. Export headings use the same section names as the app. |
 | R-054 | Do not ask for a data-use confirmation in the app. Using only synthetic or approved nonconfidential material remains the user's responsibility, stated in the README. | No checkbox, banner, or confirmation dialog about material use appears. Creating, editing, importing, loading the example, commenting, reviewing, and using the assistant work without it. Existing PRDs open unchanged. |
+
+
+## Comments, requirement links, and delivery reports
+
+These are requested Must requirements. Anyone with access to the same running
+workspace may comment using a role label; this does not add public access or
+verify identity. Requirement IDs are unique within their PRD. A requirement in
+another PRD is identified by both the PRD and requirement ID.
+
+| ID | Requirement | Done when |
+| --- | --- | --- |
+| R-055 | Show a comment popup beside selected words in a requirement's wording, acceptance criteria, use case, or intended outcome. | Selecting words in Document or Table view reveals an Add comment control beside the selection. It opens a comment for those exact words. Keyboard users can start a comment without selecting with a mouse. Selections across fields are rejected. Posting preserves the PRD wording and revision. |
+| R-056 | Highlight words with an open comment and show a comment icon beside the associated text. | Document and Table views show the same saved anchors and open discussions. The icon opens the associated discussion. Overlapping comments, repeated words, and emoji keep their correct positions. Resolved discussions remain available in Comments. Changed wording keeps its original comment quote and is marked as changed rather than highlighting unrelated words. |
+| R-057 | Connect two saved requirements as Connected to or Depends on. | Connected to is shown from both requirements. Depends on identifies which requirement needs the other. Users can add and remove links without changing wording or approval. Self-links, duplicate links, missing requirements, and conflicting edits are rejected. Existing saved work remains intact. |
+| R-058 | Show all saved requirements in a graph, including requirements without links. | Each node identifies its PRD and requirement. Connected links and directional dependencies look different and have a legend. Users can open a requirement from its node. A readable list provides the same relationships for keyboard and screen-reader users. Cycles do not prevent the graph from opening. |
+| R-059 | Link to requirements from requirement text using double square brackets and show backlinks. | Typing [[R-001]] links to R-001 in the current PRD. A link to another PRD identifies both the PRD and requirement. Valid links open their target, and the target lists requirements whose text links to it. Missing targets are marked as missing. Editing or removing a text link updates its backlink after saving. Rendering links preserves the exact text used by comment anchors. |
+| R-060 | Let the team edit written proof and attach supporting files for each requirement from its review controls. | Document and Table views offer a clearly named proof action. Saved proof and files remain after reopening. Proof changes retain their history and make an earlier completion verdict require a recheck. Attachment errors preserve the entered proof and existing files. |
+| R-061 | Generate a readable document report containing every current requirement and its current proof. | The report includes the PRD title and saved version, complete requirement wording and acceptance criteria, owners, delivery status, proof text, reviewer details, and attachment names. It has headings and readable paragraphs, works offline, and can be printed. A download includes the report and original proof files with working relative links. Untrusted text is displayed as text. |
+| R-062 | Offer a completed-requirements report only when every current requirement is Complete with the required proof and review information. | The server checks the current saved version when generating the report. An empty PRD, a pending requirement, or proof needing a recheck cannot produce a report labeled complete. The ordinary delivery report remains available and states any gaps. Generating either report does not change the PRD or its reviews. |
+
+Inline text links are references; they do not automatically create dependencies.
+Dependencies record a relationship and do not automatically change delivery
+verdicts. Comment labels and recorded proof describe human input; Requiro does
+not run the product's tests or independently verify the proof.

@@ -1,6 +1,8 @@
 """Local completion evidence and explicit team verdicts, separate from PRD authoring."""
 
 import hashlib
+import base64
+from html import escape
 import io
 import json
 import re
@@ -24,7 +26,7 @@ def status_label(status):
 def required_gaps(requirement, item):
     fields = {'behavior': requirement.get('behavior'), 'acceptance criteria': requirement.get('acceptance'),
               'proof explanation': item.get('proof'), 'reviewer role': item.get('reviewer'),
-              'review date': item.get('reviewedAt')}
+              'review date': local_time(item.get('reviewedAt'))}
     gaps = [label for label, value in fields.items() if not isinstance(value, str) or missing(value)]
     owners = item.get('owners')
     if not isinstance(owners, list) or not owners or any(not isinstance(owner, str) or missing(owner) for owner in owners):
@@ -220,10 +222,65 @@ class Verification:
             raise InputError('Requirement not found in the current PRD.', 404)
         return self._attachment(item, attachment_id)
 
-    def report(self, document_id):
+    def _report_snapshot(self, document_id, completed):
         with self.store.connection() as db:
             db.execute('BEGIN')
             doc, items = self._snapshot(db, document_id)
+        complete = bool(items) and all(item['status'] == 'Verified' and not required_gaps(req, item)
+                                       for req, item in zip(doc['sections']['requirements'], items))
+        if completed and not complete:
+            raise InputError('A completed report needs at least one current requirement and every requirement Complete with its proof and review information. Review the remaining gaps first.', 409)
+        return doc, items
+
+    def _document_html(self, doc, items, *, completed=False, embedded=True):
+        title = ('Completed requirements report' if completed else 'Delivery report') + ': ' + doc['title']
+        use_cases = self.store.use_case_context(doc)
+        counts = {status: sum(item['status'] == status for item in items) for status in STATUSES}
+        all_complete = bool(items) and counts['Verified'] == len(items) and all(
+            not required_gaps(req, item) for req, item in zip(doc['sections']['requirements'], items))
+        parts = ['<!doctype html><html lang="en"><head><meta charset="utf-8">',
+                 '<meta name="viewport" content="width=device-width,initial-scale=1">',
+                 '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; base-uri \'none\'; form-action \'none\'">',
+                 '<title>' + escape(title) + '</title><style>',
+                 'body{max-width:900px;margin:40px auto;padding:0 24px;color:#17212b;background:white;font:17px/1.6 system-ui,sans-serif}h1{font-size:32px;line-height:1.2}h2{font-size:24px}h3{font-size:18px;margin-bottom:4px}p{white-space:pre-wrap;overflow-wrap:anywhere}section{border-top:1px solid #aaa;margin-top:32px;padding-top:16px}a{color:#16477b}li{overflow-wrap:anywhere}@media print{body{max-width:none;margin:0;padding:0;font-size:11pt}h1,h2,h3{break-after:avoid}section{break-inside:auto}a{color:inherit}}',
+                 '</style></head><body><main><h1>' + escape(title) + '</h1>',
+                 '<p>Saved PRD v' + str(doc['revision']) + ' · ' + escape(doc['id']) + '</p>',
+                 '<p>Complete records the team’s review decision. Requiro does not run the product’s tests or independently verify the proof.</p>',
+                 '<p>' + escape('; '.join(f'{status_label(status)}: {counts[status]}' for status in STATUSES)) + '</p>',
+                 '<p>' + ('All current requirements have a recorded Complete review and the required information.' if all_complete
+                           else 'Delivery review has gaps. Pending requirements and missing information are listed below.') + '</p>']
+        for req, item in zip(doc['sections']['requirements'], items):
+            parts.append('<section><h2>' + escape(req['id'] + ' · ' + status_label(item['status'])) + '</h2>')
+            fields = [('Requirement', req['behavior']), ('Acceptance criteria', req['acceptance']),
+                      ('Priority', req['priority'] + (' (not yet agreed)' if req['proposed'] else '')),
+                      ('Use case', use_case_text(doc, req, use_cases)), ('Intended outcome', req['outcome']),
+                      ('Engineering owners', ', '.join(item['owners']) or 'Not assigned'),
+                      ('Proof explanation', item['proof']), ('Reviewer role', item['reviewer']),
+                      ('Reviewed at', local_time(item['reviewedAt'])),
+                      ('Proof recorded for PRD version', 'v' + str(item['baselinePrdRevision']) if item['baselinePrdRevision'] else ''),
+                      ('Review notes', item['reviewNotes']),
+                      ('Required information gaps', ', '.join(required_gaps(req, item)) or 'None.')]
+            for label, value in fields:
+                parts.append('<h3>' + label + '</h3><p>' + escape(value or 'Not documented') + '</p>')
+            parts.append('<h3>Proof attachments</h3><ul>')
+            for metadata in item['attachments']:
+                attachment, content = self._attachment(item, metadata['id'])
+                href = ('data:application/octet-stream;base64,' + base64.b64encode(content).decode('ascii') if embedded
+                        else quote(f"attachments/{attachment['id']}/{attachment['name']}"))
+                parts.append('<li><a download="' + escape(attachment['name'], quote=True) + '" href="' + escape(href, quote=True)
+                             + '">' + escape(attachment['name']) + '</a> (' + str(attachment['size']) + ' bytes)</li>')
+            if not item['attachments']:
+                parts.append('<li>None attached.</li>')
+            parts.append('</ul></section>')
+        parts.append('</main></body></html>')
+        return ''.join(parts).encode('utf-8')
+
+    def document_report(self, document_id, *, completed=False):
+        doc, items = self._report_snapshot(document_id, completed)
+        return self._document_html(doc, items, completed=completed)
+
+    def report(self, document_id, *, completed=False):
+        doc, items = self._report_snapshot(document_id, completed)
         use_cases = self.store.use_case_context(doc)
         counts = {status: sum(item['status'] == status for item in items) for status in STATUSES}
         lines = [f"# Delivery review: {doc['title']}", '',
@@ -236,6 +293,7 @@ class Verification:
                  '[Full current PRD](prd.md)', '']
         output = io.BytesIO()
         with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED) as bundle:
+            bundle.writestr('report.html', self._document_html(doc, items, completed=completed, embedded=False))
             bundle.writestr('prd.md', markdown(doc, use_cases))
             for requirement, item in zip(doc['sections']['requirements'], items):
                 gaps = required_gaps(requirement, item)

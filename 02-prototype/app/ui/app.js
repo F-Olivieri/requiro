@@ -4,6 +4,7 @@ import {initWorkspaceControls} from './workspace-controls.js';
 import {openRequirementStatus} from './requirement-status.js';
 import {openConnections, projectLabel} from './connections.js';
 import {openComments} from './comments.js';
+import {openRequirementLinks} from './requirement-links.js';
 import {useCaseControl, refreshUseCaseControls, useCaseText} from './use-cases.js';
 import {fileSlug, formatDateTime as formatDate} from './format.js';
 
@@ -27,7 +28,7 @@ const stageDescriptions = {Discover: 'Start with the people and the problem.', S
 const starterQuestions = {Discover: 'Who runs into this problem, and what are they unable to do today?', Scope: 'Which use case must work in the first version, and what can wait?', Requirements: 'For one use case, what should happen and how would we test that it worked?', Review: 'Which requirement or assumption is least clear, and what evidence would resolve it?'};
 const $ = selector => document.querySelector(selector);
 const clone = value => JSON.parse(JSON.stringify(value));
-const state = {docs: [], doc: null, saved: null, composeDrafts: {}, stage: 'Discover', view: 'document', useCasesContext: null, useCasesRequest: 0, verification: null, verificationRequest: 0, verificationLoading: false, verificationError: '', commentCounts: null, commentRequest: 0, pendingFocus: null, busy: false, proposal: null, proposalBaseline: null, pendingAction: null};
+const state = {docs: [], doc: null, saved: null, composeDrafts: {}, stage: 'Discover', view: 'document', useCasesContext: null, useCasesRequest: 0, verification: null, verificationRequest: 0, verificationLoading: false, verificationError: '', commentCounts: null, commentRequest: 0, linksSnapshot: null, linksRequest: 0, pendingFocus: null, busy: false, proposal: null, proposalBaseline: null, pendingAction: null};
 let workspace = null;
 
 function el(tag, className, text) {
@@ -277,6 +278,7 @@ function acceptSaved(doc) {
   state.verification = null;
   state.verificationError = '';
   state.useCasesContext = null;
+  state.linksSnapshot = null;
   removed.length = 0;
   updateSummary(doc);
   renderDocument();
@@ -284,6 +286,12 @@ function acceptSaved(doc) {
   refreshVerification();
   refreshUseCases();
   refreshCommentCounts();
+  refreshRequirementLinks();
+}
+let previewDeferred = false;
+function refreshPreview() {
+  if (document.getSelection?.()?.isCollapsed === false) { previewDeferred = true; return; }
+  previewDeferred = false; renderPreview();
 }
 async function refreshUseCases() {
   const {id, revision} = state.saved;
@@ -296,7 +304,7 @@ async function refreshUseCases() {
         state.saved.sections.requirements.some(req => context.labels[req.id]?.value !== req.appliesTo || typeof context.labels[req.id]?.label !== 'string' || typeof context.labels[req.id]?.imported !== 'boolean')) throw new Error('Use cases do not match this PRD revision.');
     state.useCasesContext = context;
     refreshUseCaseControls($('#editor-content'), state.doc, context);
-    renderPreview();
+    refreshPreview();
   } catch {
     if (current()) {
       state.useCasesContext = null;
@@ -306,7 +314,7 @@ async function refreshUseCases() {
 }
 function markDirty() {
   updateControls();
-  if (state.view !== 'edit') renderPreview();
+  if (state.view !== 'edit') refreshPreview();
   scheduleLocalDraft();
 }
 async function refreshVerification() {
@@ -314,7 +322,7 @@ async function refreshVerification() {
   const request = ++state.verificationRequest;
   const current = () => state.verificationRequest === request && state.saved?.id === id && state.saved.revision === revision;
   state.verificationLoading = true;
-  renderPreview();
+  refreshPreview();
   try {
     const result = await api(`/api/prds/${encodeURIComponent(id)}/verification`);
     if (!current()) return;
@@ -324,7 +332,7 @@ async function refreshVerification() {
   } catch (error) {
     if (current()) { state.verification = null; state.verificationError = error.message; }
   } finally {
-    if (current()) { state.verificationLoading = false; renderPreview(); }
+    if (current()) { state.verificationLoading = false; refreshPreview(); }
   }
 }
 async function refreshCommentCounts() {
@@ -336,21 +344,22 @@ async function refreshCommentCounts() {
     const result = await api(`/api/prds/${encodeURIComponent(id)}/comments`);
     if (result.documentId === id && Array.isArray(result.threads)) {
       const open = result.threads.filter(thread => thread.status === 'Open');
-      counts = {documentId: id, total: open.length, byRequirement: {}};
+      counts = {documentId: id, prdRevision: result.prdRevision, total: open.length, threads: result.threads, byRequirement: {}};
       for (const thread of open) counts.byRequirement[thread.requirementId] = (counts.byRequirement[thread.requirementId] || 0) + 1;
     }
   } catch { /* Counts are a convenience; the Comments dialog still loads every thread. */ }
   if (state.commentRequest !== request || state.saved?.id !== id) return;
+  if (JSON.stringify(state.commentCounts) === JSON.stringify(counts)) return;
   state.commentCounts = counts;
   updateControls();
-  if (state.view !== 'edit') renderPreview();
+  if (state.view !== 'edit') refreshPreview();
 }
 async function reviewDelivery(requirementId) {
   await save();
   await openCompletion({doc: clone(state.saved), api, requirementId});
   await refreshVerification();
 }
-async function commentRequirement({requirementId, anchor, browse = false} = {}) {
+async function commentRequirement({requirementId, anchor, browse = false, threadId} = {}) {
   if (!state.saved) return;
   if (browse && dirty()) anchor = undefined;
   if ((anchor && dirty()) || (requirementId && !state.saved.sections.requirements.some(req => req.id === requirementId))) {
@@ -358,7 +367,7 @@ async function commentRequirement({requirementId, anchor, browse = false} = {}) 
     $('#save-prd').focus();
     return;
   }
-  await openComments({doc: clone(state.saved), requirementId, anchor, browse, api});
+  await openComments({doc: clone(state.saved), requirementId, anchor, browse, threadId, api});
   await refreshCommentCounts();
 }
 async function changeReviewStatus(requirementId, {saveDraft = false} = {}) {
@@ -435,6 +444,7 @@ function updateControls() {
   $('#import-prd').disabled = state.busy;
   $('#manage-projects').disabled = state.busy;
   $('#connections-prd').disabled = state.busy || !hasDoc;
+  $('#requirement-links-prd').disabled = state.busy || !hasDoc;
   $('#comments-prd').disabled = state.busy || !hasDoc;
   const openThreads = hasDoc && state.commentCounts?.documentId === state.doc.id ? state.commentCounts.total : 0;
   $('#comments-prd').textContent = openThreads ? `Comments (${openThreads})` : 'Comments';
@@ -583,7 +593,7 @@ function requirementControl(req, key, label, kind = 'textarea') {
   return wrapper;
 }
 function renderRequirements(container) {
-  const card = sectionCard('03', 'Turn the scope into testable behavior.', 'Each requirement has a stable ID, a use case, an intended outcome, and an acceptance test.');
+  const card = sectionCard('03', 'Turn the scope into testable behavior.', 'Each requirement has a stable ID, a use case, an intended outcome, and an acceptance test. Link requirement text with [[R-002]], or [[PRD-id/R-002]] for another PRD.');
   const top = el('div', 'requirement-topline');
   top.append(el('p', '', `${state.doc.sections.requirements.length} requirements`));
   const add = el('button', 'button', '+ Add requirement');
@@ -721,7 +731,7 @@ function renderPreview() {
   const view = $('#prd-visualization'), active = document.activeElement;
   const focusKey = view.contains?.(active) ? active.getAttribute('data-focus-key') : null;
   const commentCounts = state.commentCounts?.documentId === state.doc.id ? state.commentCounts.byRequirement : null;
-  renderPrdView(view, {doc: state.doc, mode: state.view, verification: state.verification, useCasesContext: state.useCasesContext, savedRevision: dirty() ? null : state.saved.revision, savedDoc: state.saved, commentCounts, onReview: (requirementId, options) => run(() => changeReviewStatus(requirementId, options)), onComment: payload => run(() => commentRequirement(payload)), onEditSection: editSection});
+  renderPrdView(view, {doc: state.doc, mode: state.view, verification: state.verification, useCasesContext: state.useCasesContext, savedRevision: dirty() ? null : state.saved.revision, savedDoc: state.saved, commentCounts, commentThreads: state.commentCounts?.documentId === state.doc.id && state.commentCounts.prdRevision === state.saved.revision ? state.commentCounts.threads : [], linksSnapshot: state.linksSnapshot, onOpenRequirement: target => run(() => navigateRequirement(target)), onConnections: requirementId => run(() => manageRequirementLinks(requirementId)), onProof: requirementId => run(() => reviewDelivery(requirementId)), onReview: (requirementId, options) => run(() => changeReviewStatus(requirementId, options)), onComment: payload => run(() => commentRequirement(payload)), onEditSection: editSection});
   updateControls();
   const again = focusKey && view.querySelector(`[data-focus-key="${focusKey}"]`);
   if (focusable(again)) again.focus();
@@ -1240,6 +1250,31 @@ export function buildMarkdown(doc, useCasesContext) {
   return result;
 }
 
+async function refreshRequirementLinks() {
+  const id = state.saved?.id, request = ++state.linksRequest;
+  if (!id) return;
+  try {
+    const snapshot = await api('/api/requirement-links');
+    if (state.saved?.id !== id || request !== state.linksRequest) return;
+    state.linksSnapshot = snapshot; refreshPreview();
+  } catch { /* The graph action retries; document editing remains available. */ }
+}
+async function navigateRequirement({documentId, requirementId}) {
+  if (!state.saved || (documentId !== state.saved.id || dirty())) {
+    if (!await confirmLeave()) return;
+    acceptSaved(await api(`/api/prds/${encodeURIComponent(documentId)}`));
+  }
+  state.view = 'document'; renderPreview();
+  const target = [...document.querySelectorAll('[data-requirement-id]')].find(node => node.getAttribute('data-requirement-id') === requirementId);
+  if (!target) { message('This requirement is no longer in the saved PRD. Reopen the links to see its current state.', true); return; }
+  target.tabIndex = -1; target.scrollIntoView({block: 'center'}); target.focus({preventScroll: true});
+}
+async function manageRequirementLinks(requirementId) {
+  if (dirty()) { message('Save your draft before connecting requirements. Your edits are preserved.'); $('#save-prd').focus(); return; }
+  await openRequirementLinks({doc: clone(state.saved), requirementId, api, onOpenRequirement: target => navigateRequirement(target).catch(error => message(error.message, true))});
+  await refreshRequirementLinks();
+}
+
 async function refreshLibrary() {
   const [result, {projects}] = await Promise.all([api('/api/state'), api('/api/projects')]);
   state.docs = result.docs;
@@ -1257,12 +1292,14 @@ async function manageConnections(withDocument) {
 }
 async function init() {
   trackDialogFocus();
+  document.addEventListener?.('selectionchange', () => { if (previewDeferred) refreshPreview(); });
   workspace = initWorkspaceControls();
   document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
   $('#search').addEventListener('input', renderLibrary);
   $('#status-filter').addEventListener('change', renderLibrary);
   $('#project-filter').addEventListener('change', renderLibrary);
   $('#manage-projects').addEventListener('click', async () => { await run(() => manageConnections(false)); returnFocus($('#manage-projects')); });
+  $('#requirement-links-prd').addEventListener('click', () => run(() => manageRequirementLinks()));
   $('#connections-prd').addEventListener('click', async () => { await run(() => manageConnections(true)); returnFocus($('#connections-prd')); });
   $('#new-prd').addEventListener('click', openNew);
   $('#welcome-new').addEventListener('click', openNew);
@@ -1375,5 +1412,8 @@ async function init() {
   window.addEventListener('beforeunload', event => { if (dirty() || hasUnsentCompose()) { event.preventDefault(); event.returnValue = ''; } });
   updateControls();
   await run(refreshLibrary);
+  setInterval(() => {
+    if (state.saved && !state.busy && !document.hidden && !document.querySelector('dialog[open]') && document.getSelection?.()?.isCollapsed !== false) refreshCommentCounts();
+  }, 3000);
 }
 if (typeof document !== 'undefined') init();

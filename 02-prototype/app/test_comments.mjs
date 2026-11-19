@@ -1,17 +1,18 @@
 import assert from 'node:assert/strict';
 import {openComments, selectedRequirementAnchor} from './ui/comments.js';
-import {renderPrdView} from './ui/prd-views.js';
+import {renderPrdView, highlightCommentRanges} from './ui/prd-views.js';
 
 class TextNode {
   constructor(text, owner) { this.nodeType = 3; this.textContent = text; this.ownerDocument = owner; }
 }
 class Element {
-  constructor(tag, owner) { this.nodeType = 1; this.tag = tag; this.ownerDocument = owner; this.childNodes = []; this.attributes = {}; this.listeners = {}; this.value = ''; }
+  constructor(tag, owner) { this.nodeType = 1; this.tag = tag; this.ownerDocument = owner; this.childNodes = []; this.attributes = {}; this.listeners = {}; this.value = ''; this.style = {}; }
   get children() { return this.childNodes.filter(node => node.nodeType === 1); }
   set textContent(text) { this.replaceChildren(new TextNode(String(text), this.ownerDocument)); }
   get textContent() { return this.childNodes.map(node => node.textContent).join(''); }
   append(...nodes) { for (const node of nodes) { node.parentElement = this; this.childNodes.push(node); } }
   replaceChildren(...nodes) { if (this.contains(this.ownerDocument.activeElement)) this.ownerDocument.activeElement = this.ownerDocument.body; for (const node of this.childNodes) node.parentElement = null; this.childNodes = []; this.append(...nodes); }
+  replaceChild(next, previous) { const index = this.childNodes.indexOf(previous); assert.ok(index >= 0); this.childNodes[index] = next; next.parentElement = this; previous.parentElement = null; }
   setAttribute(key, value) { this.attributes[key] = String(value); }
   getAttribute(key) { return this.attributes[key] ?? null; }
   matches(selector) { return selector.startsWith('[') ? [...selector.matchAll(/\[([^\]]+)\]/g)].every(match => this.attributes[match[1]] !== undefined) : this.tag === selector; }
@@ -37,6 +38,7 @@ let copied = '';
 const dom = {
   selection: null,
   createElement: tag => new Element(tag, dom),
+  createTextNode: text => new TextNode(text, dom),
   getSelection: () => dom.selection,
   addEventListener(name, handler) { if (!documentEvents.has(name)) documentEvents.set(name, new Set()); documentEvents.get(name).add(handler); },
   removeEventListener(name, handler) { documentEvents.get(name)?.delete(handler); },
@@ -54,7 +56,7 @@ const doc = {id: 'fictional-comments', title: 'Fictional shared list', revision:
 doc.sections.requirements = [1, 2].map(number => ({id: `R-00${number}`, priority: 'Must', proposed: false, behavior: `Ship 🚀 safely ${number}`, acceptance: `A fictional result appears ${number}.`, appliesTo: 'UC-01', outcome: 'A fictional outcome'}));
 const baseline = JSON.stringify(doc);
 function selection(start, from, to, end = start, quote = start.textContent.slice(from, to)) {
-  const range = {startContainer: start.childNodes[0], startOffset: from, endContainer: end.childNodes[0], endOffset: to, toString: () => quote};
+  const range = {getBoundingClientRect: () => ({left: 42, bottom: 100}), startContainer: start.childNodes[0], startOffset: from, endContainer: end.childNodes[0], endOffset: to, toString: () => quote};
   return {isCollapsed: from === to && start === end, rangeCount: 1, getRangeAt: () => range};
 }
 const marked = (field, requirement = 'R-001') => container.querySelectorAll('[data-comment-requirement][data-comment-field]').find(node => node.getAttribute('data-comment-requirement') === requirement && node.getAttribute('data-comment-field') === field);
@@ -67,6 +69,8 @@ for (const mode of ['document', 'table']) {
   for (const handler of documentEvents.get('selectionchange')) handler();
   const selected = container.querySelectorAll('button').find(node => node.getAttribute('aria-label') === 'Comment on selected text in R-001');
   assert.equal(selected.hidden, false); assert.equal(selected.getAttribute('data-selection-valid'), 'true');
+  assert.equal(selected.getAttribute('data-selection-popup'), 'true');
+  assert.deepEqual(selected.style, {left: '42px', top: '108px'}, 'The comment popup is positioned beside selected words.');
   await selected.fire('mousedown'); dom.selection = null; selected.focus();
   for (const handler of documentEvents.get('selectionchange')) handler();
   await selected.click();
@@ -88,6 +92,29 @@ for (const mode of ['document', 'table']) {
   assert.equal(commentTarget.anchor.quote, doc.sections.requirements[1][commentTarget.anchor.field], 'The single Comment control anchors to the whole saved wording.');
 }
 assert.equal(documentEvents.get('selectionchange').size, 1, 'Rerendering removes the earlier selection listener.');
+assert.equal(documentEvents.get('scroll').size, 1, 'Rerendering removes the earlier popup-position listener.');
+
+const annotated = dom.createElement('span');
+annotated.textContent = 'repeat 🚀 repeat ';
+const nestedLink = dom.createElement('a'); nestedLink.textContent = '[[R-002]]'; annotated.append(nestedLink);
+const rawAnnotated = annotated.textContent;
+highlightCommentRanges(annotated, [{start: 7, end: 16}, {start: 10, end: 21}]);
+assert.equal(annotated.textContent, rawAnnotated, 'Overlapping highlights across text and link nodes preserve exact UTF-16 source text.');
+assert.equal(annotated.querySelectorAll('a')[0], nestedLink, 'Highlighting preserves the original link and its event listeners.');
+assert.equal(annotated.querySelectorAll('mark').map(node => node.textContent).join(''), rawAnnotated.slice(7, 21));
+for (const mode of ['document', 'table']) {
+  const raw = doc.sections.requirements[0].behavior;
+  const active = {id: 'anchor-rocket', requirementId: 'R-001', status: 'Open', anchorCurrent: true, anchor: {field: 'behavior', start: 5, end: 7, quote: '🚀', sourceText: raw}};
+  renderPrdView(container, {doc, mode, commentThreads: [active], onComment: value => { commentTarget = value; }});
+  assert.equal(marked('behavior').textContent, raw, 'Comment icons never enter the anchor source text.');
+  assert.equal(marked('behavior').querySelectorAll('mark')[0].textContent, '🚀');
+  const icon = container.querySelectorAll('button').find(node => node.getAttribute('aria-label') === 'Open comment on R-001: 🚀');
+  await icon.click(); assert.equal(commentTarget.threadId, active.id);
+  for (const changed of [{...active, status: 'Resolved'}, {...active, anchorCurrent: false}, {...active, anchor: {...active.anchor, sourceText: 'Earlier wording'}}]) {
+    renderPrdView(container, {doc, mode, commentThreads: [changed], onComment: () => {}});
+    assert.equal(container.querySelectorAll('mark').length, 0, 'Resolved and changed anchors do not highlight unrelated words.');
+  }
+}
 
 let threads = [];
 let conflict = false;

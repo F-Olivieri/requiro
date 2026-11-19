@@ -404,9 +404,14 @@ class Store:
                     raise InputError('A selected requirement from this source revision was already imported.', 409)
                 doc = json.loads(json.dumps(current))
                 added = []
+                copied_ids = {source_req: f"R-{doc['nextRequirementNumber'] + index:03d}"
+                              for index, source_req in enumerate(requirement_ids)}
+                from requirement_links import TEXT_FIELDS, remap_copied_references
                 for source_req in requirement_ids:
                     req = dict(available[source_req])
-                    req['id'] = f"R-{doc['nextRequirementNumber']:03d}"
+                    req['id'] = copied_ids[source_req]
+                    for field in TEXT_FIELDS:
+                        req[field] = remap_copied_references(req[field], source_id, copied_ids)
                     req['proposed'] = True
                     doc['nextRequirementNumber'] += 1
                     doc['sections']['requirements'].append(req)

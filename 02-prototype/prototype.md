@@ -23,8 +23,8 @@ The prototype provides a document library and an editor that guides the PM
 through writing a PRD. Each requirement keeps its ID across edits. Saved
 revisions are numbered versions of the document. The PM can review proposed
 wording, save it, and approve a specific revision. They can also restore older
-content as a new draft, archive and reopen a document, and export or import its
-current content as Markdown or JSON.
+content as a new draft, archive and reopen a document, export its
+current content as Markdown or JSON, and import Requiro JSON as a new draft.
 
 Chat responses come from the human’s chosen assistant chat, which is separate
 from this app. The app prepares a context packet: the selected PRD, its saved
@@ -33,6 +33,23 @@ current request. The human copies this
 packet to the assistant and pastes a reply back. A reply can contain a proposal,
 meaning suggested wording that the PM reviews before applying and saving it.
 The app does not connect to an AI model or generate its own responses.
+
+## Comments, links, and proof
+
+Select words in a saved requirement to open a comment control beside them.
+Posted open comments highlight their words and show a comment icon. Comments
+are shared by sessions using the same running workspace.
+
+Choose **Links & graph** to connect requirements, record a dependency, or view
+all saved requirements. Type `[[R-002]]` in requirement text to link within the
+same PRD, or `[[PRD-id/R-002]]` to link to another PRD. The graph panel lists
+backlinks. Text references preserve the exact wording used by comment anchors.
+
+Choose **Edit proof** to write proof and attach supporting files. **View delivery
+report** opens a readable document. **Download with proofs** includes that HTML
+report and the original files in a ZIP. **Completed report** is available only
+when all current requirements have a Complete verdict and the required evidence
+and review information. Changes to proof require another review.
 
 ## Current limits
 

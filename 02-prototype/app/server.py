@@ -11,6 +11,7 @@ import unicodedata
 from prd_store import InputError, MAX_BYTES, Store, markdown, text, offline_store_fingerprint, store_fingerprint as _store_fingerprint
 from verification import MAX_ATTACHMENT_BYTES, Verification
 from comments import Comments
+from requirement_links import RequirementLinks
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
@@ -37,7 +38,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass  # Document titles and prompts do not belong in request logs.
 
-    def reply(self, status, data, content_type='application/json; charset=utf-8', filename=None):
+    def reply(self, status, data, content_type='application/json; charset=utf-8', filename=None, *, report=False):
         body = json.dumps(data, ensure_ascii=False).encode() if content_type.startswith('application/json') else data
         self.send_response(status)
         self.send_header('Content-Type', content_type)
@@ -45,7 +46,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Referrer-Policy', 'no-referrer')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+        policy = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" if report else "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        self.send_header('Content-Security-Policy', policy)
         if filename:
             fallback = ''.join(c if c.isascii() and c.isalnum() or c in '._-' else '_' for c in filename)
             self.send_header('Content-Disposition', f'attachment; filename="{fallback}"; filename*=UTF-8\'\'{quote(filename, safe="")}')
@@ -71,6 +73,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, (UI_ROOT / 'connections.js').read_bytes(), 'text/javascript; charset=utf-8')
             if path == '/comments.js':
                 return self.reply(200, (UI_ROOT / 'comments.js').read_bytes(), 'text/javascript; charset=utf-8')
+            if path == '/requirement-links.js':
+                return self.reply(200, (UI_ROOT / 'requirement-links.js').read_bytes(), 'text/javascript; charset=utf-8')
             if path == '/use-cases.js':
                 return self.reply(200, (UI_ROOT / 'use-cases.js').read_bytes(), 'text/javascript; charset=utf-8')
             if path == '/api/example':
@@ -83,6 +87,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, {'docs': store.summaries(), 'ai': {'available': False, 'mode': 'handoff', 'provider': None, 'detail': 'Choose Copy for assistant, paste the text into your AI chat, then choose Paste assistant reply and check its suggestions.'}})
             if path == '/api/projects':
                 return self.reply(200, store.projects())
+            if path == '/api/requirement-links':
+                return self.reply(200, self.server.requirement_links.snapshot())
             if parts[:2] == ['api', 'prds'] and len(parts) >= 3:
                 if len(parts) == 3:
                     return self.reply(200, store.get(parts[2]))
@@ -106,8 +112,11 @@ class Handler(BaseHTTPRequestHandler):
                     return self.reply(200, self.server.verification.get(parts[2]))
                 if len(parts) == 4 and parts[3] == 'comments':
                     return self.reply(200, self.server.comments.get(parts[2]))
+                if len(parts) == 4 and parts[3] in ('delivery-report', 'completed-report'):
+                    return self.reply(200, self.server.verification.document_report(parts[2], completed=parts[3] == 'completed-report'), 'text/html; charset=utf-8', report=True)
                 if len(parts) == 4 and parts[3] == 'completion-report':
-                    return self.reply(200, self.server.verification.report(parts[2]), 'application/zip', export_name(store.get(parts[2])) + '-delivery-review.zip')
+                    completed = parse_qs(urlsplit(self.path).query).get('completed', ['0'])[0] == '1'
+                    return self.reply(200, self.server.verification.report(parts[2], completed=completed), 'application/zip', export_name(store.get(parts[2])) + '-delivery-review.zip')
                 if len(parts) == 6 and parts[3] == 'verification' and parts[5] == 'history':
                     return self.reply(200, self.server.verification.history(parts[2], parts[4]))
                 if len(parts) == 7 and parts[3] == 'verification' and parts[5] == 'attachments':
@@ -158,6 +167,10 @@ class Handler(BaseHTTPRequestHandler):
             raise InputError('Request is not valid JSON.', 400) from exc
         if not isinstance(body, dict):
             raise InputError('Request must be a JSON object.')
+        if self.command == 'POST' and path == '/api/requirement-links':
+            return self.reply(201, self.server.requirement_links.add(body))
+        if self.command == 'POST' and len(parts) == 4 and parts[:2] == ['api', 'requirement-links'] and parts[3] == 'remove':
+            return self.reply(200, self.server.requirement_links.remove(parts[2], body))
         if self.command == 'POST' and path == '/api/prds':
             return self.reply(201, store.create(body.get('title')))
         if self.command == 'POST' and path == '/api/projects':
@@ -267,6 +280,7 @@ def make_server(directory=None, port=8765):
         server.store = Store(directory if directory is not None else data_directory())
         server.verification = Verification(server.store)
         server.comments = Comments(server.store)
+        server.requirement_links = RequirementLinks(server.store)
     except Exception:
         server.server_close()
         raise

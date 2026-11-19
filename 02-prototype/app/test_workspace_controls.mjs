@@ -235,7 +235,7 @@ for (const name of ['boot.js', 'app.js', 'comments.js', 'completion.js', 'connec
   for (const marker of [/consent/i, /privacy-(banner|indicator)/, /data-use confirmation/i, /privacyConfirmed/]) assert.doesNotMatch(source, marker, `${name} has no ${marker}.`);
 }
 function bootApp() {
-  const context = vm.createContext({});
+  const context = vm.createContext({setInterval() { return 0; }});
   vm.runInContext(appSource, context);
   const controls = new Map();
   const handlers = new Map();
