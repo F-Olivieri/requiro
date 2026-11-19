@@ -27,7 +27,8 @@ EVIDENCE = {
 }
 BLOCKED = {'data', 'attachments', '.git', '.juno-data', '__pycache__'}
 SCREENSHOTS = {'assets/screenshots/' + name for name in (
-    'document-view.jpg', 'requirements-table.jpg', 'suggestion-review.jpg')}
+    'document-view.png', 'requirements-table.png', 'suggestion-review.png',
+    'comments.png', 'delivery-review.png', 'version-history.png', 'projects-reuse.png')}
 REQUIRED = ROOT_FILES | {
     '01-prompting/skill-file.md', '02-prototype/prototype.md',
     '02-prototype/app/server.py', '02-prototype/app/ui/index.html',
@@ -76,11 +77,14 @@ def self_check():
                  'AGENTS.md', '../README.md', '/README.md', 'submission/old.zip',
                  'submission/evidence/unreviewed.json', '02-prototype/app/store.sqlite3',
                  'assets/unreviewed.png', 'assets/screenshots/reply.js',
-                 'assets/screenshots/nested/document-view.jpg',
-                 'assets/screenshots/document-view.png', 'assets/screenshots/other.jpg',
-                 '02-prototype/app/document-view.jpg']:
+                 'assets/screenshots/nested/document-view.png',
+                 'assets/screenshots/document-view.jpg', 'assets/screenshots/other.png',
+                 'assets/screenshots/requirements-table.jpg',
+                 'assets/screenshots/suggestion-review.jpg',
+                 'assets/screenshots/other.jpg', '02-prototype/app/document-view.png']:
         assert not allowed(name), name
     assert allowed('02-prototype/app/server.py')
+    assert len(SCREENSHOTS) == 7
     assert all(allowed(name) for name in SCREENSHOTS)
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -90,10 +94,11 @@ def self_check():
         (root / 'data' / 'excluded.json').write_text('not course content')
         (root / 'README.md').write_text('fixture')
         (root / 'assets' / 'screenshots').mkdir(parents=True)
-        (root / 'assets' / 'screenshots' / 'document-view.jpg').write_bytes(b'JPEG fixture')
+        for name in SCREENSHOTS:
+            (root / name).write_bytes(b'PNG selection fixture')
+        (root / 'assets' / 'screenshots' / 'document-view.jpg').write_bytes(b'excluded fixture')
         (root / 'assets' / 'excluded.jpg').write_bytes(b'excluded fixture')
-        assert [path.relative_to(root).as_posix() for path in select_files(root)] == [
-            'README.md', 'assets/screenshots/document-view.jpg']
+        assert {path.relative_to(root).as_posix() for path in select_files(root)} == {'README.md'} | SCREENSHOTS
 
 
 def build():
@@ -103,14 +108,14 @@ def build():
     assert REQUIRED <= names, f'Missing required files: {sorted(REQUIRED - names)}'
     content = {path.relative_to(ROOT).as_posix(): path.read_bytes() for path in files}
     screenshots = [name for name in content if name.startswith('assets/screenshots/')]
-    assert set(screenshots) == SCREENSHOTS, 'Include exactly the three named app screenshots'
+    assert set(screenshots) == SCREENSHOTS, 'Include exactly the seven named app screenshots'
     private_home = re.compile(r'/(?:' + 'Users' + r'|' + 'home' + r')/[^\s<>\"\']+')
     employer = re.compile(r'\b(?:' + 'cis' + 'co' + '|' + 'web' + 'ex' + r')\b', re.I)
     dead_links = []
     checked_links = 0
     for name, data in content.items():
         if name in screenshots:
-            assert data.startswith(b'\xff\xd8\xff') and data.endswith(b'\xff\xd9'), f'Invalid JPEG signature: {name}'
+            assert data.startswith(b'\x89PNG\r\n\x1a\n') and data.endswith(b'\x00\x00\x00\x00IEND\xaeB`\x82'), f'Invalid PNG signature: {name}'
             continue
         text = data.decode('utf-8')
         assert not private_home.search(text), f'Personal machine path in {name}'
@@ -159,7 +164,7 @@ def build():
         'excluded': sorted(BLOCKED | {'AGENTS.md', '.DS_Store', '*.zip', 'unallowlisted files'}),
         'privacyScan': 'No personal home paths or employer identifiers in included UTF-8 source.',
         'screenshots': {'files': screenshots, 'signatureCheck': 'pass',
-                        'scanLimit': 'JPEG pixels and metadata bypass the UTF-8 text scan; review separately.'},
+                        'scanLimit': 'PNG pixels and metadata bypass the UTF-8 text scan; review separately.'},
         'files': [{'path': name, 'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
                   for name, data in sorted(content.items())],
     }

@@ -86,22 +86,46 @@ user study. Any recorded test outcomes belong with the test log.
 
 ## Screenshots
 
+Here’s an example PRD for a fictional reading club.
+
 ### Document view
 
-![Document view of the fictional reading-list PRD](../assets/screenshots/document-view.jpg)
+![Document view](../assets/screenshots/document-view.png)
 
 Read the problem, intended users, outcomes, and scope as one document.
 
 ### Requirements table
 
-![Requirements table with R-001 acceptance criteria expanded](../assets/screenshots/requirements-table.jpg)
+![Requirements table](../assets/screenshots/requirements-table.png)
 
-Compare requirements, priorities, and delivery status. Expand a requirement to
-inspect its acceptance criteria.
+Compare requirements, priorities, and delivery status. Expand a requirement to inspect its acceptance criteria.
+
+### Discuss the wording
+
+![Discuss the wording](../assets/screenshots/comments.png)
+
+Add a comment to a requirement and keep the discussion beside the wording it refers to.
+
+### Track delivery questions
+
+![Track delivery questions](../assets/screenshots/delivery-review.png)
+
+Flag a requirement as “To discuss” and record the decision the team still needs to make.
 
 ### Review suggested changes
 
-![Current and proposed wording shown before applying a suggested edit](../assets/screenshots/suggestion-review.jpg)
+![Review suggested changes](../assets/screenshots/suggestion-review.png)
 
-Compare the current and suggested wording before applying a change. Applying it
-and saving the document are separate actions.
+Compare the current and suggested wording before applying a change. Applying it and saving the document are separate actions. This example uses a prepared reply to demonstrate the review screen.
+
+### Inspect saved versions
+
+![Inspect saved versions](../assets/screenshots/version-history.png)
+
+Open an earlier version and read its saved wording. Restore it as a new draft when needed.
+
+### Reuse requirements across PRDs
+
+![Reuse requirements across PRDs](../assets/screenshots/projects-reuse.png)
+
+Link a PRD to a project and import a requirement from another PRD. The copy keeps a link to the original requirement and its saved version.
